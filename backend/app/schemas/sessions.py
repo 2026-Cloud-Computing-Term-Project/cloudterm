@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -19,10 +19,3 @@ class SessionDetailResponse(BaseModel):
     session_id: UUID
     title: str | None = Field(default=None)
     created_at: datetime
-
-
-class SessionRecord(BaseModel):
-    session_id: UUID
-    title: str | None = Field(default=None)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-

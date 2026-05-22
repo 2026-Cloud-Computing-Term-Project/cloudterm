@@ -1,7 +1,8 @@
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from app.core.settings import settings
-from app.schemas.sessions import SessionCreateResponse, SessionDetailResponse, SessionRecord
+from app.repositories.sessions import SessionRepository
+from app.schemas.sessions import SessionCreateResponse, SessionDetailResponse
 
 
 class SessionNotFoundError(Exception):
@@ -9,15 +10,11 @@ class SessionNotFoundError(Exception):
 
 
 class SessionService:
-    def __init__(self) -> None:
-        self._sessions: dict[UUID, SessionRecord] = {}
+    def __init__(self, repository: SessionRepository) -> None:
+        self.repository = repository
 
-    def create_session(self, title: str | None) -> SessionCreateResponse:
-        session = SessionRecord(
-            session_id=uuid4(),
-            title=title,
-        )
-        self._sessions[session.session_id] = session
+    async def create_session(self, title: str | None) -> SessionCreateResponse:
+        session = await self.repository.create_session(title=title)
         return SessionCreateResponse(
             session_id=session.session_id,
             title=session.title,
@@ -25,8 +22,8 @@ class SessionService:
             created_at=session.created_at,
         )
 
-    def get_session(self, session_id: UUID) -> SessionDetailResponse:
-        session = self._sessions.get(session_id)
+    async def get_session(self, session_id: UUID) -> SessionDetailResponse:
+        session = await self.repository.get_session(session_id=session_id)
         if session is None:
             raise SessionNotFoundError
         return SessionDetailResponse(
@@ -34,7 +31,3 @@ class SessionService:
             title=session.title,
             created_at=session.created_at,
         )
-
-
-session_service = SessionService()
-
