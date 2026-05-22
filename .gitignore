@@ -17,6 +17,7 @@ coverage/
 .coverage
 
 *.log
+.vscode/
 
 # Local assistant settings. Not required for teammates.
 AGENTS.md
