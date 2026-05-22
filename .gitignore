@@ -1,0 +1,24 @@
+.env
+.env.*
+!.env.example
+
+node_modules/
+dist/
+build/
+
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+
+coverage/
+.coverage
+
+*.log
+
+# Local assistant settings. Not required for teammates.
+AGENTS.md
+.codex/
+Brainstorm

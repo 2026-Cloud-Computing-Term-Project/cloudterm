@@ -1,0 +1,4 @@
+# Starter dependencies. Pin versions after the first verified runner scaffold.
+fastapi
+uvicorn[standard]
+pydantic

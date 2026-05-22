@@ -1,0 +1,6 @@
+# Starter dependencies. Pin versions after the first verified backend scaffold.
+fastapi
+uvicorn[standard]
+sqlalchemy
+asyncpg
+pydantic-settings
