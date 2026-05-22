@@ -7,6 +7,7 @@ from app.api.router import api_router
 from app.core.settings import settings
 from app.db.base import Base
 from app.db.session import engine
+from app.models.comment import CommentModel, ReplyModel
 from app.models.session import SessionModel
 
 @asynccontextmanager
