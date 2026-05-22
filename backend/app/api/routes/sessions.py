@@ -3,13 +3,16 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.clients.runner import RunnerClient, RunnerUnavailableError
 from app.db.session import get_db_session
 from app.repositories.sessions import SessionRepository
+from app.schemas.runs import RunExecuteRequest, RunExecuteResponse
 from app.schemas.sessions import (
     SessionCreateRequest,
     SessionCreateResponse,
     SessionDetailResponse,
 )
+from app.services.runs import RunService
 from app.services.sessions import SessionNotFoundError, SessionService
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
@@ -18,6 +21,10 @@ router = APIRouter(prefix="/sessions", tags=["sessions"])
 def get_session_service(db_session: AsyncSession = Depends(get_db_session)) -> SessionService:
     repository = SessionRepository(db_session=db_session)
     return SessionService(repository=repository)
+
+
+def get_run_service() -> RunService:
+    return RunService(runner_client=RunnerClient())
 
 
 @router.post("", response_model=SessionCreateResponse, status_code=status.HTTP_201_CREATED)
@@ -37,3 +44,21 @@ async def get_session(
         return await session_service.get_session(session_id=session_id)
     except SessionNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found") from exc
+
+
+@router.post("/{session_id}/run", response_model=RunExecuteResponse)
+async def execute_session_code(
+    session_id: UUID,
+    payload: RunExecuteRequest,
+    session_service: SessionService = Depends(get_session_service),
+    run_service: RunService = Depends(get_run_service),
+) -> RunExecuteResponse:
+    try:
+        await session_service.get_session(session_id=session_id)
+    except SessionNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found") from exc
+
+    try:
+        return await run_service.execute_run(payload=payload)
+    except RunnerUnavailableError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Runner unavailable") from exc
