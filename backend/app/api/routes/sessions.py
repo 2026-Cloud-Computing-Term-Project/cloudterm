@@ -7,6 +7,7 @@ from app.clients.runner import RunnerClient, RunnerUnavailableError
 from app.db.session import get_db_session
 from app.repositories.comments import CommentRepository
 from app.repositories.sessions import SessionRepository
+from app.schemas.events import CommentCreatedEvent, ReplyCreatedEvent, SessionRunCompletedEvent
 from app.schemas.comments import (
     CommentCreateRequest,
     CommentListResponse,
@@ -23,6 +24,7 @@ from app.schemas.sessions import (
 from app.services.comments import CommentNotFoundError, CommentService
 from app.services.runs import RunService
 from app.services.sessions import SessionNotFoundError, SessionService
+from app.ws.manager import session_ws_manager
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 
@@ -73,9 +75,14 @@ async def execute_session_code(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found") from exc
 
     try:
-        return await run_service.execute_run(payload=payload)
+        run_result = await run_service.execute_run(payload=payload)
     except RunnerUnavailableError as exc:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Runner unavailable") from exc
+    await session_ws_manager.broadcast(
+        session_id=session_id,
+        message=SessionRunCompletedEvent(session_id=session_id, run_id=run_result.run_id).model_dump(mode="json"),
+    )
+    return run_result
 
 
 @router.get("/{session_id}/comments", response_model=CommentListResponse)
@@ -104,7 +111,15 @@ async def create_comment(
     except SessionNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found") from exc
 
-    return await comment_service.create_comment(session_id=session_id, payload=payload)
+    created_comment = await comment_service.create_comment(session_id=session_id, payload=payload)
+    await session_ws_manager.broadcast(
+        session_id=session_id,
+        message=CommentCreatedEvent(
+            session_id=session_id,
+            comment_id=created_comment.comment_id,
+        ).model_dump(mode="json"),
+    )
+    return created_comment
 
 
 @router.post(
@@ -125,6 +140,19 @@ async def create_reply(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found") from exc
 
     try:
-        return await comment_service.create_reply(session_id=session_id, comment_id=comment_id, payload=payload)
+        created_reply = await comment_service.create_reply(
+            session_id=session_id,
+            comment_id=comment_id,
+            payload=payload,
+        )
     except CommentNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found") from exc
+    await session_ws_manager.broadcast(
+        session_id=session_id,
+        message=ReplyCreatedEvent(
+            session_id=session_id,
+            comment_id=comment_id,
+            reply_id=created_reply.reply_id,
+        ).model_dump(mode="json"),
+    )
+    return created_reply
