@@ -76,7 +76,7 @@ cloudterm/
 | --- | --- | --- |
 | Frontend | `feat/frontend-editor` | Vite React scaffold, 세션 입장 화면, Monaco Editor 기반 편집 화면 초안 |
 | Backend | `feat/backend-api` | FastAPI scaffold, health check, 세션/API 계약 구현 시작 |
-| Cloud & Infra | `feat/cloud-compose-runner` | Docker Compose 검증, backend/runner/postgres 서비스 구성, Runner 실행 제한 설계 |
+| Cloud & Infra | `feat/cloud-compose-runner` | Docker Compose 재검증, PostgreSQL 확인, Runner 실행 제한 설계, backend/runner Dockerfile 기준 정리 |
 
 `runner/`는 공동 영역이다. Runner API 요청/응답 형식은 Backend가 잡고, Runner 컨테이너 실행 제한과 배포 환경은 Cloud & Infra가 잡는다.
 
@@ -92,7 +92,7 @@ cloudterm/
 | 4 | Frontend | Vite/React/Monaco 화면과 mock 상태 | Backend API가 준비되는 즉시 실제 API로 교체 가능 |
 | 5 | 전체 | 세션 생성, 코드 실행, 질문/답변, WebSocket 흐름 통합 | 중간보고서와 데모 시나리오 작성 가능 |
 
-Frontend는 Backend를 기다리지 말고 `docs/api-contract.md` 기준 mock으로 화면을 먼저 만든다. Backend와 Cloud & Infra는 health check와 포트부터 맞춘 뒤 Runner 제한 실행을 붙인다.
+Frontend는 Backend를 기다리지 말고 `docs/api-contract.md` 기준 mock으로 화면을 먼저 만든다. Cloud & Infra는 backend/runner skeleton을 기다리는 동안 Docker/Compose 재검증, PostgreSQL 확인, Runner 제한 설계, Azure VM 배포 메모, Dockerfile 기준 정리를 먼저 진행한다.
 
 ## 로컬 준비
 
@@ -116,6 +116,8 @@ winget install -e --id Docker.DockerDesktop
 ```
 
 설치 직후에도 `docker` 명령이 안 잡히면 새 터미널을 열거나 Docker Desktop이 실행 중인지 확인한다.
+
+Cloud & Infra 세부 메모는 `infra/README.md`를 기준으로 한다.
 
 ## API 계약
 

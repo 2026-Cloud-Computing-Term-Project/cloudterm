@@ -31,7 +31,7 @@
 - 프론트엔드는 Azure Static Web Apps, 백엔드/Runner/PostgreSQL은 Azure VM의 Docker Compose 기준
 - Redis Queue, Kubernetes, Auto Scaling, 실시간 공동 편집, 로그인/회원가입은 초기 구현 범위에서 제외
 
-현재 미구현으로 남은 것은 기능 코드 자체다. Frontend scaffold, Backend API scaffold, Runner service, 전체 Docker Compose 통합, Azure VM 배포 메모는 역할별 첫 작업으로 진행한다.
+현재 미구현으로 남은 것은 기능 코드 자체다. Frontend scaffold, Backend API scaffold, Runner service, Azure VM 배포 메모는 역할별 첫 작업으로 진행한다. 전체 Docker Compose 통합은 backend/runner skeleton과 health check가 생긴 뒤 진행한다.
 
 ## 초기 통합 순서
 
@@ -115,7 +115,7 @@ Branch:
 
 ```bash
 git switch dev
-git pull origin dev
+git pull --ff-only origin dev
 git switch -c feat/cloud-compose-runner
 ```
 
@@ -123,10 +123,11 @@ git switch -c feat/cloud-compose-runner
 
 - Docker Desktop 또는 Docker Engine 설치 환경에서 `docker compose config` 재확인
 - Docker가 PATH에 없으면 Docker Desktop 실행 상태와 터미널 재시작 여부 확인
-- `docker-compose.yml`에 backend, runner, postgres 연결 구조 추가
-- backend/runner Dockerfile 작성 기준 결정
-- Runner 컨테이너 실행 제한(timeout, memory, network, read-only)을 문서화
+- PostgreSQL compose 실행과 readiness 재확인
+- backend/runner Dockerfile 작성 기준을 `infra/` 아래에 정리
+- Runner 컨테이너 실행 제한(timeout, memory, network, read-only)을 `infra/` 아래에 문서화
 - Azure VM 배포 메모를 `infra/` 아래에 작성
+- backend app entrypoint, backend health check, runner `POST /run` skeleton이 생긴 뒤 `docker-compose.yml`에 backend/runner 연결 구조 추가
 
 주의:
 

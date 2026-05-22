@@ -13,11 +13,34 @@
 
 실제 시크릿은 `.env`에만 두고 Git에 올리지 않는다. 공개 기본값과 변수 이름은 `.env.example`에 기록한다.
 
-## 첫 작업
+## 지금 할 수 있는 작업
+
+backend와 runner의 app entrypoint가 생기기 전에도 아래 작업은 병렬로 진행할 수 있다.
+
+- Docker Desktop 또는 Docker Engine 설치와 PATH 확인
+- `docker compose config`로 현재 Compose 파일 구조 검증
+- PostgreSQL compose 실행과 readiness 확인
+- Runner 샌드박스 제한 정책 정리
+- backend/runner Dockerfile 작성 기준 정리
+- Azure VM 배포 메모 초안 정리
+
+backend/runner compose 통합은 아래 산출물이 나온 뒤 진행한다.
+
+- backend app entrypoint와 health check endpoint
+- runner app entrypoint, health check endpoint, `POST /run` skeleton
+- Runner 요청/응답 모델과 timeout 처리 위치
+
+## 관련 문서
+
+- `infra/runner-sandbox.md`: Runner 실행 제한 정책
+- `infra/dockerfile-guidelines.md`: backend/runner Dockerfile 작성 기준
+- `infra/azure-vm-deployment.md`: Azure VM 배포 메모 초안
+
+## 로컬 확인
 
 ```bash
 git switch dev
-git pull origin dev
+git pull --ff-only origin dev
 git switch -c feat/cloud-compose-runner
 docker compose config
 docker compose up -d postgres
@@ -33,13 +56,14 @@ winget install -e --id Docker.DockerDesktop
 
 설치 직후에도 `docker` 명령이 안 잡히면 새 터미널을 열거나 Docker Desktop이 실행 중인지 확인한다.
 
-초기 구현 순서:
+초기 통합 순서:
 
 1. backend/runner Dockerfile 작성 기준 결정
-2. compose에 backend, runner 서비스 추가
-3. backend와 runner health check 추가
-4. Runner 컨테이너 실행 제한 문서화
-5. Azure VM 배포 메모 작성
+2. Runner 컨테이너 실행 제한 문서화
+3. Azure VM 배포 메모 작성
+4. backend/runner app entrypoint와 health check 확인
+5. compose에 backend, runner 서비스 추가
+6. backend와 runner health check를 compose 기준으로 검증
 
 주의:
 
