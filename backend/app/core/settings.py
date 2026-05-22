@@ -3,6 +3,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     app_name: str = "Cloudterm Backend API"
     app_version: str = "0.1.0"
+    frontend_base_url: str = "http://localhost:5173"
     database_url: str = "postgresql://cloudterm:cloudterm@postgres:5432/cloudterm"
     runner_url: str = "http://runner:8001"
     run_timeout_seconds: int = 3
@@ -16,4 +17,3 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-
