@@ -16,5 +16,24 @@ services:
       timeout: 5s
       retries: 5
 
+  backend:
+    build:
+      context: ./backend
+    container_name: cloudterm-backend
+    environment:
+      DATABASE_URL: postgresql://cloudterm:cloudterm@postgres:5432/cloudterm
+      RUNNER_URL: http://runner:8001
+      RUN_TIMEOUT_SECONDS: 3
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://127.0.0.1:8000/health\", timeout=2).read()'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
   postgres-data:
