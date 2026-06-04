@@ -1,51 +1,136 @@
 from __future__ import annotations
 
 import asyncio
-import sys
+import logging
 import tempfile
+import time
 from pathlib import Path
 
+import docker
+from docker.errors import APIError, DockerException, ImageNotFound
 from fastapi import APIRouter, HTTPException, status
 
+from app.core.settings import settings
 from app.schemas import RunRequest, RunResponse
 
 router = APIRouter(tags=["run"])
+logger = logging.getLogger(__name__)
+
+SANDBOX_OUTPUT_DIR = f"{settings.sandbox_workdir}/output"
+SANDBOX_INPUT_DIR = f"{settings.sandbox_workdir}/input"
 
 
-async def _execute_python(code: str, stdin: str, timeout_seconds: int) -> RunResponse:
-    with tempfile.TemporaryDirectory() as temp_dir:
-        script_path = Path(temp_dir) / "main.py"
-        script_path.write_text(code, encoding="utf-8")
+def _read_text(path: Path) -> str:
+    if not path.exists():
+        return ""
+    return path.read_text(encoding="utf-8", errors="replace")
 
-        process = await asyncio.create_subprocess_exec(
-            sys.executable,
-            "-I",
-            str(script_path),
-            stdin=asyncio.subprocess.PIPE,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            cwd=temp_dir,
-        )
 
+def _execute_python_in_docker(code: str, stdin: str, timeout_seconds: int) -> RunResponse:
+    try:
+        client = docker.from_env()
+        logger.info("runner.sandbox.image_check image=%s", settings.sandbox_image)
         try:
-            stdout_bytes, stderr_bytes = await asyncio.wait_for(
-                process.communicate(input=stdin.encode("utf-8")),
-                timeout=timeout_seconds,
-            )
-            timed_out = False
-            exit_code = int(process.returncode or 0)
-        except asyncio.TimeoutError:
-            process.kill()
-            stdout_bytes, stderr_bytes = await process.communicate()
-            timed_out = True
-            exit_code = 124
+            client.images.get(settings.sandbox_image)
+        except ImageNotFound:
+            logger.info("runner.sandbox.image_pull image=%s", settings.sandbox_image)
+            client.images.pull(settings.sandbox_image)
 
-    return RunResponse(
-        stdout=stdout_bytes.decode("utf-8", errors="replace"),
-        stderr=stderr_bytes.decode("utf-8", errors="replace"),
-        exit_code=exit_code,
-        timed_out=timed_out,
-    )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            input_dir = temp_path / "input"
+            output_dir = temp_path / "output"
+            input_dir.mkdir()
+            output_dir.mkdir()
+
+            (input_dir / "main.py").write_text(code, encoding="utf-8")
+            (input_dir / "stdin.txt").write_text(stdin, encoding="utf-8")
+
+            container = None
+            try:
+                logger.info(
+                    "runner.sandbox.start image=%s timeout_seconds=%s",
+                    settings.sandbox_image,
+                    timeout_seconds,
+                )
+                container = client.containers.create(
+                    image=settings.sandbox_image,
+                    command=[
+                        "sh",
+                        "-lc",
+                        "python -I /workspace/input/main.py "
+                        "< /workspace/input/stdin.txt "
+                        "1>/workspace/output/stdout.txt "
+                        "2>/workspace/output/stderr.txt",
+                    ],
+                    detach=True,
+                    network_disabled=True,
+                    read_only=True,
+                    mem_limit=settings.sandbox_memory_limit,
+                    nano_cpus=settings.sandbox_cpu_nano,
+                    pids_limit=settings.sandbox_pids_limit,
+                    cap_drop=["ALL"],
+                    security_opt=["no-new-privileges"],
+                    working_dir=settings.sandbox_workdir,
+                    tmpfs={
+                        "/tmp": f"rw,nosuid,nodev,noexec,size={settings.sandbox_tmpfs_size}",
+                    },
+                    volumes={
+                        str(input_dir): {"bind": SANDBOX_INPUT_DIR, "mode": "ro"},
+                        str(output_dir): {"bind": SANDBOX_OUTPUT_DIR, "mode": "rw"},
+                    },
+                )
+                container.start()
+
+                deadline = time.monotonic() + timeout_seconds
+                timed_out = False
+
+                while True:
+                    container.reload()
+                    if container.status == "exited":
+                        break
+                    if time.monotonic() >= deadline:
+                        timed_out = True
+                        logger.warning(
+                            "runner.sandbox.timeout container_id=%s timeout_seconds=%s",
+                            container.id,
+                            timeout_seconds,
+                        )
+                        try:
+                            container.kill()
+                        except DockerException:
+                            pass
+                        break
+                    time.sleep(0.05)
+
+                container.reload()
+                exit_code = int(container.attrs["State"]["ExitCode"])
+                if timed_out:
+                    exit_code = 124
+
+                logger.info(
+                    "runner.sandbox.complete container_id=%s exit_code=%s timed_out=%s",
+                    container.id,
+                    exit_code,
+                    timed_out,
+                )
+                return RunResponse(
+                    stdout=_read_text(output_dir / "stdout.txt"),
+                    stderr=_read_text(output_dir / "stderr.txt"),
+                    exit_code=exit_code,
+                    timed_out=timed_out,
+                )
+            finally:
+                if container is not None:
+                    try:
+                        container.remove(force=True)
+                        logger.info("runner.sandbox.cleanup container_id=%s", container.id)
+                    except DockerException:
+                        logger.warning("runner.sandbox.cleanup_failed container_id=%s", container.id)
+                        pass
+    except (APIError, DockerException, ValueError, KeyError, TypeError) as exc:
+        logger.exception("runner.sandbox.failed")
+        raise DockerException(str(exc)) from exc
 
 
 @router.post("/run", response_model=RunResponse)
@@ -55,8 +140,16 @@ async def run_code(payload: RunRequest) -> RunResponse:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Only python execution is supported",
         )
-    return await _execute_python(
-        code=payload.code,
-        stdin=payload.stdin,
-        timeout_seconds=payload.timeout_seconds,
-    )
+
+    try:
+        return await asyncio.to_thread(
+            _execute_python_in_docker,
+            payload.code,
+            payload.stdin,
+            payload.timeout_seconds,
+        )
+    except DockerException as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Docker sandbox unavailable",
+        ) from exc

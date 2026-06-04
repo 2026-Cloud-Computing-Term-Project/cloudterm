@@ -5,15 +5,11 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-RUN useradd --create-home --uid 10001 appuser
-
 COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 
 COPY app ./app
-
-USER appuser
 
 EXPOSE 8001
 
