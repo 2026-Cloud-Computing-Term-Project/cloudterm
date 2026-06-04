@@ -8,7 +8,7 @@ from app.db.migrations import upgrade_database
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    await upgrade_database()
+    upgrade_database()
     yield
 
 
