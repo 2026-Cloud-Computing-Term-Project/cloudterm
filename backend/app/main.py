@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -8,7 +9,7 @@ from app.db.migrations import upgrade_database
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    upgrade_database()
+    await asyncio.to_thread(upgrade_database)
     yield
 
 
