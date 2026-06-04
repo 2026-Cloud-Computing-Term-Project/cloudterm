@@ -102,7 +102,7 @@ Frontend는 Backend를 기다리지 말고 `docs/api-contract.md` 기준 mock으
 Copy-Item .env.example .env
 ```
 
-현재 `docker-compose.yml`은 초기 구조 단계라 PostgreSQL만 정의한다. frontend/backend/runner 서비스는 각 영역의 Dockerfile과 health check가 생긴 뒤 추가한다.
+`docker-compose.yml`에는 PostgreSQL, backend, runner 서비스가 포함되어 있다. backend는 시작 시 Alembic으로 최신 스키마까지 마이그레이션을 적용한다.
 
 ```powershell
 docker compose up -d postgres

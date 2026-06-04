@@ -14,6 +14,8 @@
 
 기능 구현 전 `docs/api-contract.md`와 `.env.example`의 `DATABASE_URL`, `RUNNER_URL`, `RUN_TIMEOUT_SECONDS`를 먼저 확인한다.
 
+현재는 시작 시 Alembic으로 최신 스키마까지 마이그레이션을 적용한다.
+
 현재 구현 범위:
 
 - `GET /health`
