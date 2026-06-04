@@ -51,4 +51,6 @@ async def session_websocket(session_id: UUID, websocket: WebSocket) -> None:
 
             await _handle_heartbeat_message(websocket=websocket, message=message)
     except WebSocketDisconnect:
+        pass
+    finally:
         session_ws_manager.disconnect(session_id=session_id, websocket=websocket)
