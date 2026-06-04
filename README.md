@@ -45,6 +45,14 @@ git switch -c feat/cloud-compose-runner
 4. `.env.example`
 5. 본인 담당 폴더의 `README.md`
 
+Azure VM 배포 절차와 포트 정책은 `infra/azure-vm-deployment.md`를 기준으로 한다.
+
+Azure VM backend stack 배포 검증은 완료됐다. 검증된 backend health endpoint는 `http://52.231.65.10:8000/health`이며, frontend 실제 API/WebSocket 연동 시 `infra/azure-vm-deployment.md`의 Azure VM 환경변수 값을 기준으로 한다. 현재 VM이 비용 절감을 위해 deallocate 상태이면 이 endpoint는 응답하지 않으므로 실제 Azure 연결 검증 전 VM을 다시 시작한다.
+
+Cloud/Infra 실제 배포 증거와 최종 데모 전 재검증 체크리스트는 `infra/evidence.md`를 기준으로 한다.
+
+프론트엔드가 mock UI를 실제 backend와 연결할 때는 `docs/frontend-integration-guide.md`와 `docs/api-contract.md`를 함께 본다.
+
 ## 프로젝트 구조
 
 ```text
@@ -105,8 +113,7 @@ Copy-Item .env.example .env
 `docker-compose.yml`에는 PostgreSQL, backend, runner 서비스가 포함되어 있다. backend는 시작 시 Alembic으로 최신 스키마까지 마이그레이션을 적용한다.
 
 ```powershell
-docker compose up -d postgres
-docker compose exec postgres pg_isready -U cloudterm -d cloudterm
+docker compose up --build -d
 ```
 
 전체 통합 흐름을 빠르게 확인하려면 아래 스모크 테스트를 사용한다.
@@ -119,6 +126,8 @@ python scripts/compose-smoke-test.py
 
 - `docker compose up --build`로 `postgres`, `backend`, `runner`가 떠 있어야 한다.
 - 기본 포트는 `8000`과 `8001`이다.
+
+현재 로컬/최종 배포 검증은 빈 PostgreSQL volume 기준이다. 이전 backend 버전에서 `create_all`로 만든 테이블이 남아 있는 로컬 DB는 Alembic 초기 마이그레이션과 충돌할 수 있다. 기존 로컬 DB 데이터를 보존할 필요가 없을 때만 본인 환경에서 `docker compose down -v`로 PostgreSQL volume을 초기화한 뒤 다시 실행한다. 이 명령은 로컬 PostgreSQL 데이터를 삭제한다.
 
 Docker 명령이 인식되지 않으면 Docker Desktop을 설치하거나 PATH를 확인한다.
 

@@ -8,6 +8,7 @@ from docker.errors import ImageNotFound
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.api.routes.run import _execute_python_in_docker
+from app.core.settings import settings
 
 
 class FakeContainer:
@@ -100,3 +101,33 @@ class RunnerSandboxRouteTestCase(unittest.TestCase):
 
         self.assertEqual(result.exit_code, 0)
         self.assertTrue(fake_client.images.pulled)
+
+    def test_execute_python_in_docker_applies_sandbox_limits(self) -> None:
+        fake_client = FakeDockerClient()
+
+        with patch("app.api.routes.run.docker.from_env", return_value=fake_client):
+            _execute_python_in_docker(
+                code="print('hello')",
+                stdin="",
+                timeout_seconds=3,
+            )
+
+        create_kwargs = fake_client.containers.created_kwargs
+        self.assertIsNotNone(create_kwargs)
+        assert create_kwargs is not None
+        self.assertTrue(create_kwargs["network_disabled"])
+        self.assertEqual(create_kwargs["mem_limit"], settings.sandbox_memory_limit)
+        self.assertEqual(create_kwargs["nano_cpus"], settings.sandbox_cpu_nano)
+        self.assertEqual(create_kwargs["pids_limit"], settings.sandbox_pids_limit)
+        self.assertTrue(create_kwargs["read_only"])
+        self.assertEqual(create_kwargs["user"], settings.sandbox_user)
+        self.assertEqual(
+            create_kwargs["tmpfs"],
+            {
+                settings.sandbox_workdir: (
+                    f"rw,noexec,nosuid,nodev,size={settings.sandbox_tmpfs_size}"
+                ),
+            },
+        )
+        self.assertEqual(create_kwargs["cap_drop"], ["ALL"])
+        self.assertEqual(create_kwargs["security_opt"], ["no-new-privileges"])

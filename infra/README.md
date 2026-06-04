@@ -41,7 +41,34 @@ winget install -e --id Docker.DockerDesktop
 4. Runner 컨테이너 실행 제한 문서화
 5. Azure VM 배포 메모 작성
 
+## 현재 Cloud/Infra 산출물
+
+`infra/`에는 Azure 운영 문서가 있고, 실제 실행 구성은 repo 루트와 backend/runner 폴더에도 걸쳐 있다.
+
+| 경로 | 역할 |
+| --- | --- |
+| `infra/azure-vm-deployment.md` | Azure VM 배포, 검증, 정지, 재시작 runbook |
+| `infra/evidence.md` | 실제 Azure 배포 검증 결과와 Cloud/Infra 역할 완료 근거 |
+| `docker-compose.yml` | backend/runner/postgres 로컬 및 VM compose 통합 |
+| `.env.example` | 공개 환경변수 이름과 기본값 |
+| `backend/Dockerfile` | backend 컨테이너 빌드 기준 |
+| `runner/Dockerfile` | runner 컨테이너 빌드 기준 |
+| `scripts/compose-smoke-test.py` | backend/runner/postgres 통합 smoke test |
+| `docs/frontend-integration-guide.md` | 프론트 실제 API/WebSocket 연동 전달 문서 |
+
+## 배포 문서
+
+- Azure VM 배포 절차와 포트 정책은 `infra/azure-vm-deployment.md`를 기준으로 한다.
+- 실제 배포 검증 증거와 역할 완료 판단은 `infra/evidence.md`를 기준으로 한다.
+- 실제 Azure VM backend stack 배포 검증은 `cloudterm-rg`의 `cloudterm-vm`에서 완료됐다.
+- 현재 검증된 backend health endpoint는 `http://52.231.65.10:8000/health`다.
+- frontend 배포 시 API/WebSocket 환경변수는 `infra/azure-vm-deployment.md`의 현재 검증값을 기준으로 맞춘다.
+- 비용 절감을 위해 VM이 deallocate 상태이면 backend endpoint는 응답하지 않는다. 실제 Azure 검증 전 VM을 다시 시작한다.
+
 주의:
 
-- `docker compose down -v`는 PostgreSQL volume을 제거할 수 있으므로 사용하지 않는다.
+- 최종 배포와 로컬 통합 검증은 빈 PostgreSQL volume 기준이다.
+- 이전 backend 버전에서 `create_all`로 만든 테이블이 남아 있는 로컬 DB는 Alembic 초기 마이그레이션과 충돌할 수 있다.
+- 기존 로컬 DB 데이터를 보존할 필요가 없을 때만 본인 환경에서 `docker compose down -v`로 PostgreSQL volume을 초기화한다. 이 명령은 로컬 PostgreSQL 데이터를 삭제한다.
 - `.env.example` 변수 이름 변경은 팀 전체에 영향이 있으므로 먼저 공유한다.
+- Azure VM이 실행 중이면 비용이 발생한다. 중지나 삭제는 대상 리소스를 확인한 뒤 별도 승인으로 진행한다.

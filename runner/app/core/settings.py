@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     sandbox_cpu_nano: int = 500_000_000
     sandbox_pids_limit: int = 64
     sandbox_tmpfs_size: str = "64m"
+    sandbox_user: str = "1000:1000"
 
     model_config = SettingsConfigDict(
         env_file=".env",

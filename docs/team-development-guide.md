@@ -37,7 +37,7 @@ cloudterm/
 | 영역 | 담당 |
 | --- | --- |
 | Runner API 구조, 요청/응답 형식, stdout/stderr/exit code 처리 | 백엔드 담당 |
-| Runner Dockerfile, 샌드박스 컨테이너 실행 옵션, timeout/memory/network/read-only 제한 | 클라우드/인프라 담당 |
+| Runner Dockerfile, 샌드박스 컨테이너 실행 옵션, timeout/memory/CPU/network/read-only/non-root 제한 | 클라우드/인프라 담당 |
 
 즉, 백엔드 담당자는 Runner가 어떤 API로 동작할지 정하고, 클라우드/인프라 담당자는 그 Runner가 실제 Docker 샌드박스를 안전하게 실행하도록 만든다.
 

@@ -21,12 +21,13 @@ services:
       context: ./runner
     container_name: cloudterm-runner
     environment:
-      RUNNER_SANDBOX_IMAGE: ${RUNNER_SANDBOX_IMAGE}
-      RUNNER_SANDBOX_WORKDIR: ${RUNNER_SANDBOX_WORKDIR}
-      RUNNER_SANDBOX_MEMORY_LIMIT: ${RUNNER_SANDBOX_MEMORY_LIMIT}
-      RUNNER_SANDBOX_CPU_NANO: ${RUNNER_SANDBOX_CPU_NANO}
-      RUNNER_SANDBOX_PIDS_LIMIT: ${RUNNER_SANDBOX_PIDS_LIMIT}
-      RUNNER_SANDBOX_TMPFS_SIZE: ${RUNNER_SANDBOX_TMPFS_SIZE}
+      RUNNER_SANDBOX_IMAGE: ${RUNNER_SANDBOX_IMAGE:-python:3.12-slim}
+      RUNNER_SANDBOX_WORKDIR: ${RUNNER_SANDBOX_WORKDIR:-/workspace}
+      RUNNER_SANDBOX_MEMORY_LIMIT: ${RUNNER_SANDBOX_MEMORY_LIMIT:-128m}
+      RUNNER_SANDBOX_CPU_NANO: ${RUNNER_SANDBOX_CPU_NANO:-500000000}
+      RUNNER_SANDBOX_PIDS_LIMIT: ${RUNNER_SANDBOX_PIDS_LIMIT:-64}
+      RUNNER_SANDBOX_TMPFS_SIZE: ${RUNNER_SANDBOX_TMPFS_SIZE:-64m}
+      RUNNER_SANDBOX_USER: ${RUNNER_SANDBOX_USER:-1000:1000}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     ports:
@@ -42,9 +43,9 @@ services:
       context: ./backend
     container_name: cloudterm-backend
     environment:
-      DATABASE_URL: ${DATABASE_URL}
-      RUNNER_URL: ${RUNNER_URL}
-      RUN_TIMEOUT_SECONDS: ${RUN_TIMEOUT_SECONDS}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://cloudterm:cloudterm@postgres:5432/cloudterm}
+      RUNNER_URL: ${RUNNER_URL:-http://runner:8001}
+      RUN_TIMEOUT_SECONDS: ${RUN_TIMEOUT_SECONDS:-3}
     ports:
       - "8000:8000"
     depends_on:
