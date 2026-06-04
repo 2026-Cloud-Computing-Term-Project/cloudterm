@@ -45,6 +45,14 @@ git switch -c feat/cloud-compose-runner
 4. `.env.example`
 5. 본인 담당 폴더의 `README.md`
 
+Azure VM 배포 절차와 포트 정책은 `infra/azure-vm-deployment.md`를 기준으로 한다.
+
+Azure VM backend stack 배포 검증은 완료됐다. 검증된 backend health endpoint는 `http://52.231.65.10:8000/health`이며, frontend 실제 API/WebSocket 연동 시 `infra/azure-vm-deployment.md`의 Azure VM 환경변수 값을 기준으로 한다. 현재 VM이 비용 절감을 위해 deallocate 상태이면 이 endpoint는 응답하지 않으므로 실제 Azure 연결 검증 전 VM을 다시 시작한다.
+
+Cloud/Infra 실제 배포 증거와 최종 데모 전 재검증 체크리스트는 `infra/evidence.md`를 기준으로 한다.
+
+프론트엔드가 mock UI를 실제 backend와 연결할 때는 `docs/frontend-integration-guide.md`와 `docs/api-contract.md`를 함께 본다.
+
 ## 프로젝트 구조
 
 ```text

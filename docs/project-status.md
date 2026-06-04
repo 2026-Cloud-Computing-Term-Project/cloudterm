@@ -12,12 +12,15 @@
 | `README.md` 작성 | 완료 | 루트 온보딩 문서 |
 | `.env.example` 작성 | 완료 | 공개 환경변수 이름 고정 |
 | `docs/api-contract.md` 작성 | 완료 | HTTP/WebSocket/Runner API 계약 |
+| Frontend 연동 가이드 작성 | 완료 | `docs/frontend-integration-guide.md`에 실제 backend 연결 순서와 Azure VM 기준 정리 |
 | 팀 개발 시작 가이드 업로드 | 완료 | `docs/team-development-guide.md` |
 | 제출 산출물/수업 양식 정리 | 완료 | `docs/deliverables/`, `docs/templates/` |
 | Backend/Runner 시작 의존성 파일 | 완료 | `backend/requirements.txt`, `runner/requirements.txt` |
-| Frontend scaffold | 미완료 | Frontend 담당자가 feature branch에서 Vite scaffold 생성 |
-| Docker Compose 전체 서비스 검증 | 부분 완료 | PostgreSQL은 실행 검증 완료, backend/frontend/runner 서비스는 아직 없음 |
-| 기능 구현 | 부분 완료 | Backend/Runner 핵심 기능 구현 완료, Frontend는 별도 feature branch 진행 중 |
+| Frontend scaffold | 완료 | `frontend/` Vite React TypeScript scaffold와 mock UI 병합됨 |
+| Docker Compose 전체 서비스 검증 | 완료 | 빈 DB 기준 backend/runner/postgres compose smoke test 통과 |
+| Azure VM backend stack 배포 | 완료 | `cloudterm-rg`의 `cloudterm-vm`에서 backend/runner/postgres compose 배포와 외부 health 검증 완료 후 비용 절감을 위해 VM deallocate |
+| Cloud/Infra 배포 증거 정리 | 완료 | `infra/evidence.md`에 Azure 리소스, 검증 결과, 재검증 체크리스트 정리 |
+| 기능 구현 | 부분 완료 | Backend/Runner 핵심 기능 구현 완료, Frontend 실제 API/WebSocket 연동은 별도 진행 중 |
 
 ## 제안서 기준 정합성
 
@@ -32,7 +35,7 @@
 - 프론트엔드는 Azure Static Web Apps, 백엔드/Runner/PostgreSQL은 Azure VM의 Docker Compose 기준
 - Redis Queue, Kubernetes, Auto Scaling, 실시간 공동 편집, 로그인/회원가입은 초기 구현 범위에서 제외
 
-현재 미구현으로 남은 것은 일부 운영 안정화 항목이다. Frontend scaffold, Backend 핵심 API, Runner service, 전체 Docker Compose 통합은 구현을 마쳤고, Azure VM 배포 메모와 다중 인스턴스 운영성은 계속 보강한다.
+현재 미구현으로 남은 것은 일부 운영 안정화 항목이다. Frontend scaffold, Backend 핵심 API, Runner service, backend/runner/postgres Docker Compose 통합, Azure VM backend stack 배포 검증은 구현을 마쳤고, Frontend 실제 API/WebSocket 연동과 HTTPS 배포 시 reverse proxy 조정이 남아 있다.
 
 ## 초기 통합 순서
 
@@ -59,7 +62,10 @@ Frontend는 1~3번이 끝날 때까지 기다리지 않는다. `docs/api-contrac
 | Docker CLI 검증 | 완료 | Docker 설치 환경에서 compose 명령 확인 |
 | `docker compose config` | 완료 | Compose YAML 구조 검증 |
 | PostgreSQL 컨테이너 실행 | 완료 | `docker compose up -d postgres`, `pg_isready` 통과 |
-| 로컬 compose 스모크 테스트 | 완료 | `python scripts/compose-smoke-test.py`로 backend/runner/postgres 흐름 검증 |
+| 로컬 compose 스모크 테스트 | 완료 | 빈 DB 기준 `python scripts/compose-smoke-test.py`로 backend/runner/postgres 흐름 검증 |
+| Azure VM 배포 문서 | 완료 | `infra/azure-vm-deployment.md`에 배포 절차, 포트 정책, 검증 기준 정리 |
+| Azure VM 배포 검증 | 완료 | Korea Central `cloudterm-vm`에서 compose 배포, 컨테이너 health, smoke test, 외부 `http://52.231.65.10:8000/health` 응답 확인 후 VM deallocate |
+| Cloud/Infra 증거 문서 | 완료 | `infra/evidence.md`에 실제 검증 결과와 최종 데모 전 재검증 체크리스트 정리 |
 
 ## 역할별 지금 할 일
 
@@ -151,6 +157,9 @@ git switch -c feat/cloud-compose-runner
 - 기준 브랜치는 `dev`다.
 - 각자 역할에 맞는 `feat/...` 브랜치를 만든다.
 - 작업 전 `README.md`, `docs/project-status.md`, `docs/api-contract.md`를 확인한다.
+- 프론트 실제 연동은 `docs/frontend-integration-guide.md`를 함께 확인한다.
 - PostgreSQL 컨테이너 실행은 검증됐다.
-- backend/frontend/runner compose 통합은 구현이 완료되었고, frontend 통합과 배포 메모 보강이 남아 있다.
+- backend/runner/postgres compose 통합과 Azure VM backend stack 배포 검증은 완료되었고, frontend 실제 API/WebSocket 연동이 남아 있다.
+- Cloud/Infra 배포 증거와 재검증 체크리스트는 `infra/evidence.md`를 확인한다.
+- 현재 Azure VM은 비용 절감을 위해 deallocate 상태일 수 있으므로, Azure backend 실제 검증 전에는 VM을 다시 시작하고 health check를 확인한다.
 - backend/runner의 로컬 compose 스모크 테스트는 `python scripts/compose-smoke-test.py`로 실행한다.
