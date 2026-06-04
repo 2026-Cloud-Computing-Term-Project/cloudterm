@@ -14,6 +14,19 @@
 
 기능 구현 전 `docs/api-contract.md`와 `.env.example`의 `DATABASE_URL`, `RUNNER_URL`, `RUN_TIMEOUT_SECONDS`를 먼저 확인한다.
 
+현재 구현 범위:
+
+- `GET /health`
+- `POST /sessions`
+- `GET /sessions/{session_id}`
+- `POST /sessions/{session_id}/run`
+- `GET /sessions/{session_id}/comments`
+- `POST /sessions/{session_id}/comments`
+- `POST /sessions/{session_id}/comments/{comment_id}/replies`
+- `WS /ws/sessions/{session_id}`
+- PostgreSQL 세션/실행/댓글/답글 저장
+- Runner 내부 API 연동
+
 ## 첫 작업
 
 ```bash

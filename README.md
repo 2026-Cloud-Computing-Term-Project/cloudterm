@@ -7,8 +7,8 @@
 - GitHub repo, `main`, `dev` 브랜치 생성 완료
 - 초기 모노레포 폴더와 기본 문서 생성 완료
 - API 계약과 환경변수 이름 고정 완료
-- 기능 구현은 아직 시작하지 않음
-- `docker-compose.yml`은 현재 PostgreSQL 초안만 포함함
+- 백엔드 core 기능과 runner API 구현 완료
+- `docker-compose.yml`은 PostgreSQL, backend, runner 서비스를 포함함
 - `docker compose config` 검증 완료
 - `docker compose up -d postgres`와 PostgreSQL readiness 검증 완료
 

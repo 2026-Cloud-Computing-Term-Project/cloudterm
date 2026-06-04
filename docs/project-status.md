@@ -17,7 +17,7 @@
 | Backend/Runner 시작 의존성 파일 | 완료 | `backend/requirements.txt`, `runner/requirements.txt` |
 | Frontend scaffold | 미완료 | Frontend 담당자가 feature branch에서 Vite scaffold 생성 |
 | Docker Compose 전체 서비스 검증 | 부분 완료 | PostgreSQL은 실행 검증 완료, backend/frontend/runner 서비스는 아직 없음 |
-| 기능 구현 | 미완료 | 팀원별 feature branch에서 시작 |
+| 기능 구현 | 부분 완료 | Backend/Runner 핵심 기능 구현 완료, Frontend는 별도 feature branch 진행 중 |
 
 ## 제안서 기준 정합성
 
@@ -103,6 +103,12 @@ git switch -c feat/backend-api
 - Python 버전과 dependency pin/lock 정책 결정
 - Runner 호출 URL은 `RUNNER_URL` 기준으로 사용
 - Runner API 구조가 필요하면 `runner/requirements.txt` 기준으로 `POST /run` scaffold를 별도 PR 또는 같은 Backend PR의 명확한 하위 범위로 진행
+
+현재 상태:
+
+- 세션 생성/조회, 실행, 댓글/답글, WebSocket 알림, 실행 로그 저장 구현 완료
+- Runner 내부 API 연동 및 runner 서비스 구현 완료
+- 남은 핵심 과제는 마이그레이션 도입, 통합 테스트, 운영 안정화
 
 주의:
 

@@ -12,6 +12,14 @@
 
 Runner API 요청/응답 형식은 `docs/api-contract.md`를 기준으로 한다. Docker 샌드박스 옵션과 배포 제한은 Cloud & Infra 담당 영역과 같이 맞춘다.
 
+현재 구현 범위:
+
+- `GET /health`
+- `POST /run`
+- Python 단일 파일 실행
+- stdout/stderr/exit code/timed_out 반환
+- 요청별 타임아웃 처리
+
 ## 첫 작업
 
 ```bash
