@@ -43,5 +43,7 @@ winget install -e --id Docker.DockerDesktop
 
 주의:
 
-- `docker compose down -v`는 PostgreSQL volume을 제거할 수 있으므로 사용하지 않는다.
+- 최종 배포와 로컬 통합 검증은 빈 PostgreSQL volume 기준이다.
+- 이전 backend 버전에서 `create_all`로 만든 테이블이 남아 있는 로컬 DB는 Alembic 초기 마이그레이션과 충돌할 수 있다.
+- 기존 로컬 DB 데이터를 보존할 필요가 없을 때만 본인 환경에서 `docker compose down -v`로 PostgreSQL volume을 초기화한다. 이 명령은 로컬 PostgreSQL 데이터를 삭제한다.
 - `.env.example` 변수 이름 변경은 팀 전체에 영향이 있으므로 먼저 공유한다.
