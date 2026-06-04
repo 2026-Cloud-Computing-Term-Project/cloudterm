@@ -9,6 +9,7 @@ from app.db.base import Base
 from app.db.session import engine
 from app.models.comment import CommentModel, ReplyModel
 from app.models.session import SessionModel
+from app.models.run import RunModel
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:

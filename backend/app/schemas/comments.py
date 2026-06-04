@@ -1,12 +1,12 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ReplyCreateRequest(BaseModel):
-    body: str
-    author_name: str
+    body: str = Field(min_length=1)
+    author_name: str = Field(min_length=1)
 
 
 class ReplyResponse(BaseModel):
@@ -18,9 +18,9 @@ class ReplyResponse(BaseModel):
 
 
 class CommentCreateRequest(BaseModel):
-    line_number: int
-    body: str
-    author_name: str
+    line_number: int = Field(ge=1)
+    body: str = Field(min_length=1)
+    author_name: str = Field(min_length=1)
 
 
 class CommentResponse(BaseModel):
@@ -42,4 +42,3 @@ class CommentWithRepliesResponse(BaseModel):
 
 class CommentListResponse(BaseModel):
     comments: list[CommentWithRepliesResponse]
-

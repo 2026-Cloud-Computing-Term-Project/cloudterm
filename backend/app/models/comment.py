@@ -1,8 +1,8 @@
 from datetime import datetime, timezone
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from sqlalchemy import DateTime, ForeignKey, Integer, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID as UUIDType
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -11,9 +11,9 @@ from app.db.base import Base
 class CommentModel(Base):
     __tablename__ = "comments"
 
-    comment_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    comment_id: Mapped[UUID] = mapped_column(UUIDType(as_uuid=True), primary_key=True, default=uuid4)
     session_id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True),
+        UUIDType(as_uuid=True),
         ForeignKey("sessions.session_id", ondelete="CASCADE"),
         nullable=False,
     )
@@ -29,15 +29,16 @@ class CommentModel(Base):
     replies: Mapped[list["ReplyModel"]] = relationship(
         back_populates="comment",
         cascade="all, delete-orphan",
+        order_by=lambda: ReplyModel.created_at.asc(),
     )
 
 
 class ReplyModel(Base):
     __tablename__ = "replies"
 
-    reply_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    reply_id: Mapped[UUID] = mapped_column(UUIDType(as_uuid=True), primary_key=True, default=uuid4)
     comment_id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True),
+        UUIDType(as_uuid=True),
         ForeignKey("comments.comment_id", ondelete="CASCADE"),
         nullable=False,
     )
@@ -50,4 +51,3 @@ class ReplyModel(Base):
     )
 
     comment: Mapped[CommentModel] = relationship(back_populates="replies")
-
