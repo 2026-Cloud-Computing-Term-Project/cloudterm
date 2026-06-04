@@ -1,19 +1,20 @@
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
 
 
 class RunExecuteRequest(BaseModel):
-    language: str = Field(default="python")
-    code: str
+    language: Literal["python"] = Field(default="python")
+    code: str = Field(min_length=1)
     stdin: str = Field(default="")
 
 
 class RunnerRunRequest(BaseModel):
-    language: str
-    code: str
-    stdin: str
-    timeout_seconds: int
+    language: Literal["python"]
+    code: str = Field(min_length=1)
+    stdin: str = Field(default="")
+    timeout_seconds: int = Field(gt=0)
 
 
 class RunnerRunResponse(BaseModel):
@@ -29,4 +30,3 @@ class RunExecuteResponse(BaseModel):
     stderr: str
     exit_code: int
     timed_out: bool
-

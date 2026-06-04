@@ -17,7 +17,7 @@
 | Backend/Runner 시작 의존성 파일 | 완료 | `backend/requirements.txt`, `runner/requirements.txt` |
 | Frontend scaffold | 미완료 | Frontend 담당자가 feature branch에서 Vite scaffold 생성 |
 | Docker Compose 전체 서비스 검증 | 부분 완료 | PostgreSQL은 실행 검증 완료, backend/frontend/runner 서비스는 아직 없음 |
-| 기능 구현 | 미완료 | 팀원별 feature branch에서 시작 |
+| 기능 구현 | 부분 완료 | Backend/Runner 핵심 기능 구현 완료, Frontend는 별도 feature branch 진행 중 |
 
 ## 제안서 기준 정합성
 
@@ -28,10 +28,11 @@
 - FastAPI API/WebSocket Server와 Runner Service 분리
 - PostgreSQL에 세션, 코드 스냅샷, 질문/답변, 실행 로그 저장
 - Runner가 요청마다 일회용 Docker 컨테이너를 생성해 Python 단일 파일 실행
+- PostgreSQL 스키마는 Alembic 마이그레이션으로 관리
 - 프론트엔드는 Azure Static Web Apps, 백엔드/Runner/PostgreSQL은 Azure VM의 Docker Compose 기준
 - Redis Queue, Kubernetes, Auto Scaling, 실시간 공동 편집, 로그인/회원가입은 초기 구현 범위에서 제외
 
-현재 미구현으로 남은 것은 기능 코드 자체다. Frontend scaffold, Backend API scaffold, Runner service, 전체 Docker Compose 통합, Azure VM 배포 메모는 역할별 첫 작업으로 진행한다.
+현재 미구현으로 남은 것은 일부 운영 안정화 항목이다. Frontend scaffold, Backend 핵심 API, Runner service, 전체 Docker Compose 통합은 구현을 마쳤고, Azure VM 배포 메모와 다중 인스턴스 운영성은 계속 보강한다.
 
 ## 초기 통합 순서
 
@@ -58,6 +59,7 @@ Frontend는 1~3번이 끝날 때까지 기다리지 않는다. `docs/api-contrac
 | Docker CLI 검증 | 완료 | Docker 설치 환경에서 compose 명령 확인 |
 | `docker compose config` | 완료 | Compose YAML 구조 검증 |
 | PostgreSQL 컨테이너 실행 | 완료 | `docker compose up -d postgres`, `pg_isready` 통과 |
+| 로컬 compose 스모크 테스트 | 완료 | `python scripts/compose-smoke-test.py`로 backend/runner/postgres 흐름 검증 |
 
 ## 역할별 지금 할 일
 
@@ -104,10 +106,18 @@ git switch -c feat/backend-api
 - Runner 호출 URL은 `RUNNER_URL` 기준으로 사용
 - Runner API 구조가 필요하면 `runner/requirements.txt` 기준으로 `POST /run` scaffold를 별도 PR 또는 같은 Backend PR의 명확한 하위 범위로 진행
 
+현재 상태:
+
+- 세션 생성/조회, 실행, 댓글/답글, WebSocket 알림, 실행 로그 저장 구현 완료
+- Runner 내부 API 연동 및 runner 서비스 구현 완료
+- Alembic 기반 DB 마이그레이션 적용 완료
+- Runner 샌드박스 transient failure 재시도 추가
+- 남은 핵심 과제는 WebSocket 다중 인스턴스 운영성, 통합 테스트, 운영 안정화
+
 주의:
 
 - API 계약 변경이 필요하면 구현 전에 `docs/api-contract.md`를 먼저 갱신한다.
-- DB 모델만 만들고 마이그레이션 없는 drift를 만들지 않는다.
+- DB 마이그레이션은 Alembic으로 관리한다.
 
 ### Cloud & Infra
 
@@ -142,4 +152,5 @@ git switch -c feat/cloud-compose-runner
 - 각자 역할에 맞는 `feat/...` 브랜치를 만든다.
 - 작업 전 `README.md`, `docs/project-status.md`, `docs/api-contract.md`를 확인한다.
 - PostgreSQL 컨테이너 실행은 검증됐다.
-- backend/frontend/runner compose 통합은 Cloud & Infra 첫 작업으로 남아 있다.
+- backend/frontend/runner compose 통합은 구현이 완료되었고, frontend 통합과 배포 메모 보강이 남아 있다.
+- backend/runner의 로컬 compose 스모크 테스트는 `python scripts/compose-smoke-test.py`로 실행한다.

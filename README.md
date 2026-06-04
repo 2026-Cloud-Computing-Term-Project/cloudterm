@@ -7,8 +7,8 @@
 - GitHub repo, `main`, `dev` 브랜치 생성 완료
 - 초기 모노레포 폴더와 기본 문서 생성 완료
 - API 계약과 환경변수 이름 고정 완료
-- 기능 구현은 아직 시작하지 않음
-- `docker-compose.yml`은 현재 PostgreSQL 초안만 포함함
+- 백엔드 core 기능과 runner API 구현 완료
+- `docker-compose.yml`은 PostgreSQL, backend, runner 서비스를 포함함
 - `docker compose config` 검증 완료
 - `docker compose up -d postgres`와 PostgreSQL readiness 검증 완료
 
@@ -102,12 +102,23 @@ Frontend는 Backend를 기다리지 말고 `docs/api-contract.md` 기준 mock으
 Copy-Item .env.example .env
 ```
 
-현재 `docker-compose.yml`은 초기 구조 단계라 PostgreSQL만 정의한다. frontend/backend/runner 서비스는 각 영역의 Dockerfile과 health check가 생긴 뒤 추가한다.
+`docker-compose.yml`에는 PostgreSQL, backend, runner 서비스가 포함되어 있다. backend는 시작 시 Alembic으로 최신 스키마까지 마이그레이션을 적용한다.
 
 ```powershell
 docker compose up -d postgres
 docker compose exec postgres pg_isready -U cloudterm -d cloudterm
 ```
+
+전체 통합 흐름을 빠르게 확인하려면 아래 스모크 테스트를 사용한다.
+
+```bash
+python scripts/compose-smoke-test.py
+```
+
+전제:
+
+- `docker compose up --build`로 `postgres`, `backend`, `runner`가 떠 있어야 한다.
+- 기본 포트는 `8000`과 `8001`이다.
 
 Docker 명령이 인식되지 않으면 Docker Desktop을 설치하거나 PATH를 확인한다.
 

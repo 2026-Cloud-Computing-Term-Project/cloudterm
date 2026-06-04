@@ -1,19 +1,15 @@
-from collections.abc import AsyncIterator
+import asyncio
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
 from app.api.router import api_router
 from app.core.settings import settings
-from app.db.base import Base
-from app.db.session import engine
-from app.models.comment import CommentModel, ReplyModel
-from app.models.session import SessionModel
+from app.db.migrations import upgrade_database
 
 @asynccontextmanager
-async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+async def lifespan(_: FastAPI):
+    await asyncio.to_thread(upgrade_database)
     yield
 
 

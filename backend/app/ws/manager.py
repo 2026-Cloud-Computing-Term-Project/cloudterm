@@ -22,9 +22,15 @@ class SessionWsManager:
 
     async def broadcast(self, session_id: UUID, message: dict) -> None:
         connections = list(self._connections.get(session_id, set()))
+        dead_connections: list[WebSocket] = []
         for websocket in connections:
-            await websocket.send_json(message)
+            try:
+                await websocket.send_json(message)
+            except Exception:
+                dead_connections.append(websocket)
+
+        for websocket in dead_connections:
+            self.disconnect(session_id=session_id, websocket=websocket)
 
 
 session_ws_manager = SessionWsManager()
-

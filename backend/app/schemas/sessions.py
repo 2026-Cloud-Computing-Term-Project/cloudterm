@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 
 
 class SessionCreateRequest(BaseModel):
-    title: str | None = Field(default=None)
+    title: str | None = Field(default=None, max_length=200)
 
 
 class SessionCreateResponse(BaseModel):

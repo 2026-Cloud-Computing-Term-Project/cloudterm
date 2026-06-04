@@ -12,6 +12,21 @@
 
 Runner API 요청/응답 형식은 `docs/api-contract.md`를 기준으로 한다. Docker 샌드박스 옵션과 배포 제한은 Cloud & Infra 담당 영역과 같이 맞춘다.
 
+현재 구현 범위:
+
+- `GET /health`
+- `POST /run`
+- Python 단일 파일을 Docker 샌드박스에서 실행
+- stdout/stderr/exit code/timed_out 반환
+- 요청별 타임아웃 처리
+- 네트워크 차단, read-only rootfs, CPU/memory/pids 제한 적용
+
+주의:
+
+- runner 컨테이너는 Docker 데몬에 접근해야 하므로 `docker.sock` 마운트가 필요하다.
+- 샌드박스 이미지는 기본값으로 `python:3.12-slim`을 사용한다.
+- 샌드박스 제한값은 `RUNNER_SANDBOX_*` 환경변수로 조정할 수 있다.
+
 ## 첫 작업
 
 ```bash
