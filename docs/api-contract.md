@@ -160,6 +160,13 @@ Response:
 
 세션 단위 실시간 알림 채널이다. 초기 범위는 공동 편집이 아니라 실행 결과와 질문/답변 갱신 알림이다.
 
+Heartbeat policy:
+
+- 클라이언트는 연결 유지용으로 주기적으로 `"ping"` 메시지를 보낼 수 있다.
+- 백엔드는 `"ping"`을 받으면 `{"type":"pong"}`으로 응답한다.
+- `"pong"` 메시지는 연결 유지 확인용으로 허용한다.
+- `HEARTBEAT_TIMEOUT_SECONDS` 동안 메시지가 없으면 백엔드는 연결을 종료한다.
+
 Server events:
 
 ```json
