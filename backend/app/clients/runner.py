@@ -8,6 +8,12 @@ class RunnerUnavailableError(Exception):
     pass
 
 
+class RunnerExecutionError(Exception):
+    def __init__(self, detail: str) -> None:
+        super().__init__(detail)
+        self.detail = detail
+
+
 class RunnerClient:
     async def run_code(self, payload: RunnerRunRequest) -> RunnerRunResponse:
         try:
@@ -23,6 +29,17 @@ class RunnerClient:
                     json=payload.model_dump(),
                 )
             response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            if 400 <= exc.response.status_code < 500:
+                detail = "Runner rejected the execution request"
+                try:
+                    payload_detail = exc.response.json().get("detail")
+                    if isinstance(payload_detail, str) and payload_detail.strip():
+                        detail = payload_detail
+                except ValueError:
+                    pass
+                raise RunnerExecutionError(detail) from exc
+            raise RunnerUnavailableError from exc
         except (httpx.HTTPError, ValueError) as exc:
             raise RunnerUnavailableError from exc
 

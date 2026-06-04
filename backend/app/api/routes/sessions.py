@@ -3,7 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.clients.runner import RunnerClient, RunnerUnavailableError
+from app.clients.runner import RunnerClient, RunnerExecutionError, RunnerUnavailableError
 from app.db.session import get_db_session
 from app.repositories.comments import CommentRepository
 from app.repositories.runs import RunRepository
@@ -82,6 +82,8 @@ async def execute_session_code(
 
     try:
         run_result = await run_service.execute_run(session_id=session_id, payload=payload)
+    except RunnerExecutionError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=exc.detail) from exc
     except RunnerUnavailableError as exc:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Runner unavailable") from exc
     await session_ws_manager.broadcast(
