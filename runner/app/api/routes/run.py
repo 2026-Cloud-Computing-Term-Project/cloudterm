@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+import base64
 import asyncio
+import concurrent.futures
 import logging
-import tempfile
 import time
-from pathlib import Path
 
 import docker
 from docker.errors import APIError, DockerException, ImageNotFound
@@ -16,15 +16,7 @@ from app.schemas import RunRequest, RunResponse
 router = APIRouter(tags=["run"])
 logger = logging.getLogger(__name__)
 
-SANDBOX_OUTPUT_DIR = f"{settings.sandbox_workdir}/output"
-SANDBOX_INPUT_DIR = f"{settings.sandbox_workdir}/input"
 SANDBOX_MAX_ATTEMPTS = 2
-
-
-def _read_text(path: Path) -> str:
-    if not path.exists():
-        return ""
-    return path.read_text(encoding="utf-8", errors="replace")
 
 
 def _execute_python_in_docker_once(code: str, stdin: str, timeout_seconds: int) -> RunResponse:
@@ -36,97 +28,104 @@ def _execute_python_in_docker_once(code: str, stdin: str, timeout_seconds: int) 
         logger.info("runner.sandbox.image_pull image=%s", settings.sandbox_image)
         client.images.pull(settings.sandbox_image)
 
-    with tempfile.TemporaryDirectory() as temp_dir:
-        temp_path = Path(temp_dir)
-        input_dir = temp_path / "input"
-        output_dir = temp_path / "output"
-        input_dir.mkdir()
-        output_dir.mkdir()
+    container = None
+    try:
+        logger.info(
+            "runner.sandbox.start image=%s timeout_seconds=%s",
+            settings.sandbox_image,
+            timeout_seconds,
+        )
+        encoded_code = base64.b64encode(code.encode("utf-8")).decode("ascii")
+        encoded_stdin = base64.b64encode(stdin.encode("utf-8")).decode("ascii")
+        container = client.containers.create(
+            image=settings.sandbox_image,
+            command=["sh", "-lc", "while :; do sleep 3600; done"],
+            detach=True,
+            network_disabled=True,
+            mem_limit=settings.sandbox_memory_limit,
+            nano_cpus=settings.sandbox_cpu_nano,
+            pids_limit=settings.sandbox_pids_limit,
+            cap_drop=["ALL"],
+            security_opt=["no-new-privileges"],
+            working_dir=settings.sandbox_workdir,
+            environment={
+                "RUNNER_CODE_B64": encoded_code,
+                "RUNNER_STDIN_B64": encoded_stdin,
+            },
+        )
+        container.start()
 
-        (input_dir / "main.py").write_text(code, encoding="utf-8")
-        (input_dir / "stdin.txt").write_text(stdin, encoding="utf-8")
-
-        container = None
-        try:
-            logger.info(
-                "runner.sandbox.start image=%s timeout_seconds=%s",
-                settings.sandbox_image,
-                timeout_seconds,
-            )
-            container = client.containers.create(
-                image=settings.sandbox_image,
-                command=[
-                    "sh",
-                    "-lc",
-                    "python -I /workspace/input/main.py "
-                    "< /workspace/input/stdin.txt "
-                    "1>/workspace/output/stdout.txt "
-                    "2>/workspace/output/stderr.txt",
+        def _run_exec() -> tuple[str, str, int]:
+            exec_result = container.exec_run(
+                cmd=[
+                    "python",
+                    "-c",
+                    "import base64, io, os, sys; "
+                    "code = base64.b64decode(os.environ['RUNNER_CODE_B64']).decode(); "
+                    "stdin = base64.b64decode(os.environ['RUNNER_STDIN_B64']).decode(); "
+                    "sys.stdin = io.StringIO(stdin); "
+                    "exec(compile(code, '<runner>', 'exec'), {})",
                 ],
-                detach=True,
-                network_disabled=True,
-                read_only=True,
-                mem_limit=settings.sandbox_memory_limit,
-                nano_cpus=settings.sandbox_cpu_nano,
-                pids_limit=settings.sandbox_pids_limit,
-                cap_drop=["ALL"],
-                security_opt=["no-new-privileges"],
-                working_dir=settings.sandbox_workdir,
-                tmpfs={
-                    "/tmp": f"rw,nosuid,nodev,noexec,size={settings.sandbox_tmpfs_size}",
+                environment={
+                    "RUNNER_CODE_B64": encoded_code,
+                    "RUNNER_STDIN_B64": encoded_stdin,
                 },
-                volumes={
-                    str(input_dir): {"bind": SANDBOX_INPUT_DIR, "mode": "ro"},
-                    str(output_dir): {"bind": SANDBOX_OUTPUT_DIR, "mode": "rw"},
-                },
+                demux=True,
             )
-            container.start()
 
-            deadline = time.monotonic() + timeout_seconds
-            timed_out = False
+            stdout_bytes = b""
+            stderr_bytes = b""
+            if isinstance(exec_result.output, tuple):
+                stdout_bytes = exec_result.output[0] or b""
+                stderr_bytes = exec_result.output[1] or b""
+            elif isinstance(exec_result.output, bytes):
+                stdout_bytes = exec_result.output
 
-            while True:
-                container.reload()
-                if container.status == "exited":
-                    break
-                if time.monotonic() >= deadline:
-                    timed_out = True
-                    logger.warning(
-                        "runner.sandbox.timeout container_id=%s timeout_seconds=%s",
-                        container.id,
-                        timeout_seconds,
-                    )
-                    try:
-                        container.kill()
-                    except DockerException:
-                        pass
-                    break
-                time.sleep(0.05)
+            return (
+                stdout_bytes.decode("utf-8", errors="replace"),
+                stderr_bytes.decode("utf-8", errors="replace"),
+                int(exec_result.exit_code),
+            )
 
-            container.reload()
-            exit_code = int(container.attrs["State"]["ExitCode"])
-            if timed_out:
+        timed_out = False
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(_run_exec)
+            try:
+                stdout, stderr, exit_code = future.result(timeout=timeout_seconds)
+            except concurrent.futures.TimeoutError:
+                timed_out = True
+                logger.warning(
+                    "runner.sandbox.timeout container_id=%s timeout_seconds=%s",
+                    container.id,
+                    timeout_seconds,
+                )
+                try:
+                    container.kill()
+                except DockerException:
+                    pass
+                stdout = ""
+                stderr = ""
                 exit_code = 124
 
-            logger.info(
-                "runner.sandbox.complete container_id=%s exit_code=%s timed_out=%s",
-                container.id,
-                exit_code,
-                timed_out,
-            )
-            return RunResponse(
-                stdout=_read_text(output_dir / "stdout.txt"),
-                stderr=_read_text(output_dir / "stderr.txt"),
-                exit_code=exit_code,
-                timed_out=timed_out,
-            )
-        finally:
-            if container is not None:
-                try:
-                    container.remove(force=True)
-                    logger.info("runner.sandbox.cleanup container_id=%s", container.id)
-                except DockerException:
-                    logger.warning("runner.sandbox.cleanup_failed container_id=%s", container.id)
+        logger.info(
+            "runner.sandbox.complete container_id=%s exit_code=%s timed_out=%s",
+            container.id,
+            exit_code,
+            timed_out,
+        )
+        return RunResponse(
+            stdout=stdout,
+            stderr=stderr,
+            exit_code=exit_code,
+            timed_out=timed_out,
+        )
+    finally:
+        if container is not None:
+            try:
+                container.remove(force=True)
+                logger.info("runner.sandbox.cleanup container_id=%s", container.id)
+            except DockerException:
+                logger.warning("runner.sandbox.cleanup_failed container_id=%s", container.id)
 
 
 def _execute_python_in_docker(code: str, stdin: str, timeout_seconds: int) -> RunResponse:

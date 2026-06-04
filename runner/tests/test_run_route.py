@@ -19,15 +19,15 @@ class FakeContainer:
         self.removed = False
 
     def start(self) -> None:
-        volumes = self.kwargs["volumes"]
-        output_host_dir = next(
-            Path(host_path)
-            for host_path, mount in volumes.items()
-            if mount["bind"] == "/workspace/output"
-        )
-        output_host_dir.joinpath("stdout.txt").write_text("hello\n", encoding="utf-8")
-        output_host_dir.joinpath("stderr.txt").write_text("", encoding="utf-8")
-        self.status = "exited"
+        self.status = "running"
+
+    def exec_run(self, **kwargs):
+        class FakeExecResult:
+            def __init__(self) -> None:
+                self.output = (b"hello\n", b"")
+                self.exit_code = 0
+
+        return FakeExecResult()
 
     def reload(self) -> None:
         return None
