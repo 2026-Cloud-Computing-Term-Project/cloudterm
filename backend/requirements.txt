@@ -5,3 +5,4 @@ sqlalchemy
 asyncpg
 pydantic-settings
 httpx
+alembic
