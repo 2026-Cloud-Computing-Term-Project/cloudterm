@@ -20,6 +20,15 @@ services:
     build:
       context: ./runner
     container_name: cloudterm-runner
+    environment:
+      RUNNER_SANDBOX_IMAGE: ${RUNNER_SANDBOX_IMAGE}
+      RUNNER_SANDBOX_WORKDIR: ${RUNNER_SANDBOX_WORKDIR}
+      RUNNER_SANDBOX_MEMORY_LIMIT: ${RUNNER_SANDBOX_MEMORY_LIMIT}
+      RUNNER_SANDBOX_CPU_NANO: ${RUNNER_SANDBOX_CPU_NANO}
+      RUNNER_SANDBOX_PIDS_LIMIT: ${RUNNER_SANDBOX_PIDS_LIMIT}
+      RUNNER_SANDBOX_TMPFS_SIZE: ${RUNNER_SANDBOX_TMPFS_SIZE}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
     ports:
       - "8001:8001"
     healthcheck:
