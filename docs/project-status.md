@@ -135,7 +135,7 @@ git switch -c feat/cloud-compose-runner
 - Docker가 PATH에 없으면 Docker Desktop 실행 상태와 터미널 재시작 여부 확인
 - `docker-compose.yml`에 backend, runner, postgres 연결 구조 추가
 - backend/runner Dockerfile 작성 기준 결정
-- Runner 컨테이너 실행 제한(timeout, memory, network, read-only)을 문서화
+- Runner 컨테이너 실행 제한(timeout, memory, CPU, network, read-only, non-root)을 문서화
 - Azure VM 배포 메모를 `infra/` 아래에 작성
 
 주의:

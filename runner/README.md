@@ -19,7 +19,7 @@ Runner API 요청/응답 형식은 `docs/api-contract.md`를 기준으로 한다
 - Python 단일 파일을 Docker 샌드박스에서 실행
 - stdout/stderr/exit code/timed_out 반환
 - 요청별 타임아웃 처리
-- 네트워크 차단, read-only rootfs, CPU/memory/pids 제한 적용
+- 네트워크 차단, read-only rootfs, non-root user, CPU/memory/pids 제한 적용
 
 주의:
 

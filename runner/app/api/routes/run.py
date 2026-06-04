@@ -45,6 +45,11 @@ def _execute_python_in_docker_once(code: str, stdin: str, timeout_seconds: int) 
             mem_limit=settings.sandbox_memory_limit,
             nano_cpus=settings.sandbox_cpu_nano,
             pids_limit=settings.sandbox_pids_limit,
+            read_only=True,
+            user=settings.sandbox_user,
+            tmpfs={
+                settings.sandbox_workdir: f"rw,noexec,nosuid,nodev,size={settings.sandbox_tmpfs_size}",
+            },
             cap_drop=["ALL"],
             security_opt=["no-new-privileges"],
             working_dir=settings.sandbox_workdir,
@@ -70,6 +75,7 @@ def _execute_python_in_docker_once(code: str, stdin: str, timeout_seconds: int) 
                     "RUNNER_CODE_B64": encoded_code,
                     "RUNNER_STDIN_B64": encoded_stdin,
                 },
+                user=settings.sandbox_user,
                 demux=True,
             )
 
