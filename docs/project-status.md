@@ -58,6 +58,7 @@ Frontend는 1~3번이 끝날 때까지 기다리지 않는다. `docs/api-contrac
 | Docker CLI 검증 | 완료 | Docker 설치 환경에서 compose 명령 확인 |
 | `docker compose config` | 완료 | Compose YAML 구조 검증 |
 | PostgreSQL 컨테이너 실행 | 완료 | `docker compose up -d postgres`, `pg_isready` 통과 |
+| 로컬 compose 스모크 테스트 | 완료 | `python scripts/compose-smoke-test.py`로 backend/runner/postgres 흐름 검증 |
 
 ## 역할별 지금 할 일
 
@@ -149,3 +150,4 @@ git switch -c feat/cloud-compose-runner
 - 작업 전 `README.md`, `docs/project-status.md`, `docs/api-contract.md`를 확인한다.
 - PostgreSQL 컨테이너 실행은 검증됐다.
 - backend/frontend/runner compose 통합은 Cloud & Infra 첫 작업으로 남아 있다.
+- backend/runner의 로컬 compose 스모크 테스트는 `python scripts/compose-smoke-test.py`로 실행한다.
