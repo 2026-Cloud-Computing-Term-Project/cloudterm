@@ -28,6 +28,11 @@ type WsEventLog = {
   time: string
 }
 
+type Toast = {
+  type: 'error' | 'success' | 'info'
+  message: string
+}
+
 function App() {
   const [sessionTitle, setSessionTitle] = useState('Python Debug Session')
   const [joinSessionId, setJoinSessionId] = useState('')
@@ -44,34 +49,87 @@ function App() {
 
   const [replyBodies, setReplyBodies] = useState<Record<string, string>>({})
   const [events, setEvents] = useState<WsEventLog[]>([])
-  const [error, setError] = useState('')
+  const [toast, setToast] = useState<Toast | null>(null)
   const [loading, setLoading] = useState(false)
 
+  const isBackendReady = Boolean(session)
+  const isWebSocketLive = events.some((event) => event.type === 'ws.connected')
+  const isRunnerTested = Boolean(runResult)
+
+  const showToast = (type: Toast['type'], message: string) => {
+    setToast({ type, message })
+  }
+
   useEffect(() => {
-    if (!error) return
+    if (!toast) return
 
     const timer = window.setTimeout(() => {
-      setError('')
+      setToast(null)
     }, 3500)
 
     return () => window.clearTimeout(timer)
-  }, [error])
+  }, [toast])
+
+  const addEvent = (event: WsEventLog) => {
+    setEvents((prev) => [event, ...prev].slice(0, 20))
+  }
+
+  const getShareLink = (sessionId: string) => {
+    return `${window.location.origin}/sessions/${sessionId}`
+  }
+
+  const moveToSessionUrl = (sessionId: string) => {
+    window.history.pushState(null, '', `/sessions/${sessionId}`)
+  }
+
+  const moveToHomeUrl = () => {
+    window.history.pushState(null, '', '/')
+  }
 
   const refreshComments = async (sessionId: string) => {
     const data = await getComments(sessionId)
     setComments(data.comments)
   }
 
+  const loadSession = async (sessionId: string) => {
+    const loaded = await getSession(sessionId)
+    setSession(loaded)
+    setJoinSessionId(loaded.session_id)
+    await refreshComments(loaded.session_id)
+  }
+
+  useEffect(() => {
+    const pathSessionId = window.location.pathname.split('/sessions/')[1]
+
+    if (!pathSessionId) return
+
+    const cleanSessionId = pathSessionId.split('/')[0]
+
+    if (!cleanSessionId) return
+
+    setLoading(true)
+    loadSession(cleanSessionId)
+      .then(() => showToast('success', 'Joined session from link.'))
+      .catch((err) =>
+        showToast(
+          'error',
+          err instanceof Error ? err.message : 'Failed to join session from link.',
+        ),
+      )
+      .finally(() => setLoading(false))
+  }, [])
+
   const handleCreateSession = async () => {
     try {
-      setError('')
       setLoading(true)
       const created = await createSession(sessionTitle)
       setSession(created)
       setJoinSessionId(created.session_id)
+      moveToSessionUrl(created.session_id)
       await refreshComments(created.session_id)
+      showToast('success', 'Session created successfully.')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create session')
+      showToast('error', err instanceof Error ? err.message : 'Failed to create session')
     } finally {
       setLoading(false)
     }
@@ -79,36 +137,64 @@ function App() {
 
   const handleJoinSession = async () => {
     if (!joinSessionId.trim()) {
-      setError('Please enter a session ID.')
+      showToast('error', 'Please enter a session ID.')
       return
     }
 
     try {
-      setError('')
       setLoading(true)
-      const loaded = await getSession(joinSessionId.trim())
-      setSession(loaded)
-      await refreshComments(loaded.session_id)
+      const sessionId = joinSessionId.trim()
+      await loadSession(sessionId)
+      moveToSessionUrl(sessionId)
+      showToast('success', 'Joined session successfully.')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to join session')
+      showToast('error', err instanceof Error ? err.message : 'Failed to join session')
     } finally {
       setLoading(false)
     }
   }
 
+  const handleBackToHub = () => {
+    setSession(null)
+    setRunResult(null)
+    setComments([])
+    setEvents([])
+    moveToHomeUrl()
+  }
+
+  const handleCopyLink = async () => {
+    if (!session) return
+
+    const link = getShareLink(session.session_id)
+
+    try {
+      await navigator.clipboard.writeText(link)
+      showToast('success', 'Session link copied.')
+    } catch {
+      showToast('error', 'Failed to copy session link.')
+    }
+  }
+
   const handleRunCode = async () => {
     if (!session) {
-      setError('Create or join a session first.')
+      showToast('error', 'Create or join a session first.')
       return
     }
 
     try {
-      setError('')
       setLoading(true)
       const result = await runCode(session.session_id, code, stdin)
       setRunResult(result)
+
+      if (result.timed_out) {
+        showToast('info', 'Code execution timed out inside the sandbox.')
+      } else if (result.exit_code === 0) {
+        showToast('success', 'Code executed successfully.')
+      } else {
+        showToast('error', 'Code finished with an error.')
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to run code')
+      showToast('error', err instanceof Error ? err.message : 'Failed to run code')
     } finally {
       setLoading(false)
     }
@@ -116,23 +202,23 @@ function App() {
 
   const handleCreateComment = async () => {
     if (!session) {
-      setError('Create or join a session first.')
+      showToast('error', 'Create or join a session first.')
       return
     }
 
     if (!commentBody.trim()) {
-      setError('Please write a comment.')
+      showToast('error', 'Please write a comment.')
       return
     }
 
     try {
-      setError('')
       setLoading(true)
       await createComment(session.session_id, lineNumber, commentBody, authorName || 'Mentee')
       setCommentBody('')
       await refreshComments(session.session_id)
+      showToast('success', 'Comment added.')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create comment')
+      showToast('error', err instanceof Error ? err.message : 'Failed to create comment')
     } finally {
       setLoading(false)
     }
@@ -142,16 +228,19 @@ function App() {
     if (!session) return
 
     const body = replyBodies[commentId]
-    if (!body?.trim()) return
+    if (!body?.trim()) {
+      showToast('error', 'Please write a reply.')
+      return
+    }
 
     try {
-      setError('')
       setLoading(true)
       await createReply(session.session_id, commentId, body, authorName || 'Mentor')
       setReplyBodies((prev) => ({ ...prev, [commentId]: '' }))
       await refreshComments(session.session_id)
+      showToast('success', 'Reply added.')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create reply')
+      showToast('error', err instanceof Error ? err.message : 'Failed to create reply')
     } finally {
       setLoading(false)
     }
@@ -163,47 +252,48 @@ function App() {
     const ws = new WebSocket(`${WS_BASE_URL}/ws/sessions/${session.session_id}`)
 
     ws.onopen = () => {
-      setEvents((prev) => [
-        {
-          type: 'ws.connected',
-          message: 'WebSocket connected.',
-          time: new Date().toLocaleTimeString(),
-        },
-        ...prev,
-      ].slice(0, 20))
+      addEvent({
+        type: 'ws.connected',
+        message: 'WebSocket connected.',
+        time: new Date().toLocaleTimeString(),
+      })
+      showToast('success', 'Realtime connection is live.')
     }
 
     ws.onmessage = async (event) => {
+      if (event.data === 'pong') return
+
       try {
         const data = JSON.parse(event.data)
 
         if (data.type === 'pong') return
 
-        setEvents((prev) => [
-          {
-            type: data.type ?? 'unknown',
-            message: `Received event for session ${data.session_id ?? session.session_id}`,
-            time: new Date().toLocaleTimeString(),
-          },
-          ...prev,
-        ].slice(0, 20))
+        addEvent({
+          type: data.type ?? 'unknown',
+          message: `Received event for session ${data.session_id ?? session.session_id}`,
+          time: new Date().toLocaleTimeString(),
+        })
 
-        if (
-          data.type === 'comment.created' ||
-          data.type === 'reply.created' ||
-          data.type === 'session.run.completed'
-        ) {
+        if (data.type === 'comment.created') {
+          showToast('info', 'New comment received.')
+          await refreshComments(session.session_id)
+        }
+
+        if (data.type === 'reply.created') {
+          showToast('info', 'New reply received.')
+          await refreshComments(session.session_id)
+        }
+
+        if (data.type === 'session.run.completed') {
+          showToast('info', 'Run completed event received.')
           await refreshComments(session.session_id)
         }
       } catch {
-        setEvents((prev) => [
-          {
-            type: 'ws.message',
-            message: String(event.data),
-            time: new Date().toLocaleTimeString(),
-          },
-          ...prev,
-        ].slice(0, 20))
+        addEvent({
+          type: 'ws.message',
+          message: String(event.data),
+          time: new Date().toLocaleTimeString(),
+        })
       }
     }
 
@@ -214,25 +304,20 @@ function App() {
     }, 15000)
 
     ws.onerror = () => {
-      setEvents((prev) => [
-        {
-          type: 'ws.error',
-          message: 'WebSocket error occurred.',
-          time: new Date().toLocaleTimeString(),
-        },
-        ...prev,
-      ].slice(0, 20))
+      addEvent({
+        type: 'ws.error',
+        message: 'WebSocket error occurred.',
+        time: new Date().toLocaleTimeString(),
+      })
+      showToast('error', 'WebSocket error occurred.')
     }
 
     ws.onclose = () => {
-      setEvents((prev) => [
-        {
-          type: 'ws.closed',
-          message: 'WebSocket disconnected.',
-          time: new Date().toLocaleTimeString(),
-        },
-        ...prev,
-      ].slice(0, 20))
+      addEvent({
+        type: 'ws.closed',
+        message: 'WebSocket disconnected.',
+        time: new Date().toLocaleTimeString(),
+      })
     }
 
     return () => {
@@ -241,56 +326,155 @@ function App() {
     }
   }, [session])
 
+  if (!session) {
+    return (
+      <main className="app">
+        {toast && (
+          <div className={`toast toast-${toast.type}`}>
+            <span>{toast.message}</span>
+            <button type="button" className="toast-close" onClick={() => setToast(null)}>
+              ×
+            </button>
+          </div>
+        )}
+
+        <section className="hub">
+          <div className="hub-hero">
+            <p className="eyebrow">Cloudterm</p>
+            <h1>Cloudterm Code Mentoring</h1>
+            <p className="subtitle">
+              Create a coding session, run Python code inside a Docker sandbox,
+              and discuss line-based questions in realtime.
+            </p>
+
+            <div className="status-row">
+              <span className="status-pill active">● Frontend Ready</span>
+              <span className="status-pill">○ Waiting for Session</span>
+              <span className="status-pill">○ Runner Not Tested</span>
+            </div>
+          </div>
+
+          <div className="hub-grid">
+            <div className="hub-card">
+              <h2>Create New Session</h2>
+              <p>Start a new code mentoring room and share the session link.</p>
+              <input
+                value={sessionTitle}
+                onChange={(event) => setSessionTitle(event.target.value)}
+                placeholder="Session title"
+              />
+              <button type="button" onClick={handleCreateSession} disabled={loading}>
+                Create Session
+              </button>
+            </div>
+
+            <div className="hub-card">
+              <h2>Join Existing Session</h2>
+              <p>Paste a session ID or open a shared session link.</p>
+              <input
+                value={joinSessionId}
+                onChange={(event) => setJoinSessionId(event.target.value)}
+                placeholder="Session ID"
+              />
+              <button type="button" onClick={handleJoinSession} disabled={loading}>
+                Join Session
+              </button>
+            </div>
+          </div>
+
+          <section className="flow-strip hub-flow">
+            <div>
+              <strong>Frontend</strong>
+              <span>React + Monaco</span>
+            </div>
+            <div className="flow-arrow">→</div>
+            <div>
+              <strong>Backend API</strong>
+              <span>FastAPI</span>
+            </div>
+            <div className="flow-arrow">→</div>
+            <div>
+              <strong>Runner</strong>
+              <span>Docker Sandbox</span>
+            </div>
+            <div className="flow-arrow">→</div>
+            <div>
+              <strong>Result</strong>
+              <span>stdout / stderr</span>
+            </div>
+          </section>
+        </section>
+      </main>
+    )
+  }
+
   return (
     <main className="app">
-      <header className="topbar">
-        <div>
-          <p className="eyebrow">Cloudterm</p>
-          <h1>Cloudterm Code Mentoring</h1>
-          <p className="subtitle">
-            Write Python code, run it safely inside a Docker sandbox, and discuss line-based questions with realtime backend updates.
-          </p>
-        </div>
-
-        <div className="session-card">
-          <span>Current Session</span>
-          <strong>{session?.title ?? 'No session selected'}</strong>
-          <small>{session?.session_id ?? 'Create or join a session first'}</small>
-        </div>
-      </header>
-
-      {error && (
-        <div className="toast-error">
-          <span>{error}</span>
-          <button type="button" className="toast-close" onClick={() => setError('')}>
+      {toast && (
+        <div className={`toast toast-${toast.type}`}>
+          <span>{toast.message}</span>
+          <button type="button" className="toast-close" onClick={() => setToast(null)}>
             ×
           </button>
         </div>
       )}
 
-      <section className="session-actions">
-        <div className="card">
-          <h2>Create Session</h2>
-          <input
-            value={sessionTitle}
-            onChange={(event) => setSessionTitle(event.target.value)}
-            placeholder="Session title"
-          />
-          <button type="button" onClick={handleCreateSession} disabled={loading}>
-            Create Session
-          </button>
+      <header className="topbar">
+        <div>
+          <p className="eyebrow">Cloudterm Workspace</p>
+          <h1>{session.title}</h1>
+          <p className="subtitle">
+            Write Python code, run it safely inside a Docker sandbox, and discuss
+            line-based questions with realtime backend updates.
+          </p>
+
+          <div className="status-row">
+            <span className={`status-pill ${isBackendReady ? 'active' : ''}`}>
+              {isBackendReady ? '● Backend Connected' : '○ Backend Waiting'}
+            </span>
+            <span className={`status-pill ${isWebSocketLive ? 'active' : ''}`}>
+              {isWebSocketLive ? '● WebSocket Live' : '○ WebSocket Idle'}
+            </span>
+            <span className={`status-pill ${isRunnerTested ? 'active' : ''}`}>
+              {isRunnerTested ? '● Docker Runner Tested' : '○ Runner Not Tested'}
+            </span>
+          </div>
         </div>
 
-        <div className="card">
-          <h2>Join Session</h2>
-          <input
-            value={joinSessionId}
-            onChange={(event) => setJoinSessionId(event.target.value)}
-            placeholder="Session ID"
-          />
-          <button type="button" onClick={handleJoinSession} disabled={loading}>
-            Join Session
-          </button>
+        <div className="session-card">
+          <span>Session Link</span>
+          <strong>{session.session_id}</strong>
+          <small>{getShareLink(session.session_id)}</small>
+          <div className="session-card-actions">
+            <button type="button" className="secondary-button" onClick={handleCopyLink}>
+              Copy Link
+            </button>
+            <button type="button" className="secondary-button" onClick={handleBackToHub}>
+              Back to Hub
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <section className="flow-strip">
+        <div>
+          <strong>Frontend</strong>
+          <span>React + Monaco</span>
+        </div>
+        <div className="flow-arrow">→</div>
+        <div>
+          <strong>Backend API</strong>
+          <span>FastAPI</span>
+        </div>
+        <div className="flow-arrow">→</div>
+        <div>
+          <strong>Runner</strong>
+          <span>Docker Sandbox</span>
+        </div>
+        <div className="flow-arrow">→</div>
+        <div>
+          <strong>Result</strong>
+          <span>stdout / stderr</span>
         </div>
       </section>
 
@@ -298,7 +482,7 @@ function App() {
         <section className="editor-panel">
           <div className="panel-header">
             <div>
-              <h2>Python Code</h2>
+              <h2>Code Editor</h2>
               <p>Code is sent to backend and executed by Runner/Docker sandbox.</p>
             </div>
 
@@ -309,7 +493,8 @@ function App() {
                 onClick={() =>
                   setCode(`print("Hello from Cloudterm!")
 numbers = [1, 2, 3, 4]
-print("Total:", sum(numbers))`)
+print("Total:", sum(numbers))
+`)
                 }
               >
                 Success Demo
@@ -320,8 +505,8 @@ print("Total:", sum(numbers))`)
                 className="secondary-button"
                 onClick={() =>
                   setCode(`numbers = [1, 2, 3]
-            print(total)
-            `)
+print(total)
+`)
                 }
               >
                 Error Demo
@@ -329,17 +514,17 @@ print("Total:", sum(numbers))`)
 
               <button
                 type="button"
-                className="secondary-button"
+                className="secondary-button danger-soft"
                 onClick={() =>
                   setCode(`while True:
-                pass
-            `)
+    pass
+`)
                 }
               >
                 Timeout Demo
               </button>
 
-              <button type="button" onClick={handleRunCode} disabled={loading || !session}>
+              <button type="button" onClick={handleRunCode} disabled={loading}>
                 Run Code
               </button>
             </div>
@@ -372,7 +557,7 @@ print("Total:", sum(numbers))`)
 
         <aside className="side-panel">
           <section className="card">
-            <h2>Execution Result</h2>
+            <h2>Run Output</h2>
 
             <div className="result-grid">
               <div>
@@ -393,7 +578,7 @@ print("Total:", sum(numbers))`)
           </section>
 
           <section className="card">
-            <h2>WebSocket Events</h2>
+            <h2>Realtime Events</h2>
 
             <div className="event-list">
               {events.length === 0 && <p className="empty">No events yet.</p>}
@@ -412,7 +597,7 @@ print("Total:", sum(numbers))`)
       <section className="comments-panel">
         <div className="panel-header">
           <div>
-            <h2>Line Questions & Replies</h2>
+            <h2>Mentor Comments</h2>
             <p>Comments are saved and loaded from backend API.</p>
           </div>
         </div>
@@ -435,7 +620,7 @@ print("Total:", sum(numbers))`)
             onChange={(event) => setCommentBody(event.target.value)}
             placeholder="Question for this line"
           />
-          <button type="button" onClick={handleCreateComment} disabled={loading || !session}>
+          <button type="button" onClick={handleCreateComment} disabled={loading}>
             Add Comment
           </button>
         </div>
@@ -473,7 +658,7 @@ print("Total:", sum(numbers))`)
                 <button
                   type="button"
                   onClick={() => handleCreateReply(comment.comment_id)}
-                  disabled={loading || !session}
+                  disabled={loading}
                 >
                   Reply
                 </button>
