@@ -8,13 +8,14 @@
 - Resource group: `cloudterm-rg`
 - VM: `cloudterm-vm`
 - Region: Korea Central
-- Backend public endpoint: `http://52.231.65.10:8000`
+- Backend public endpoint: `https://cloudterm-backend-3.koreacentral.cloudapp.azure.com`
+- Frontend public endpoint: `https://yellow-field-0ad776800.7.azurestaticapps.net`
 - Backend health: `GET /health`
 - Runner와 PostgreSQL은 외부에서 직접 접근하지 않음
 - Runner 내부 API는 backend가 Docker Compose network에서만 호출함
-- 현재 VM은 배포 검증 후 비용 절감을 위해 deallocate 상태일 수 있음
+- 현재 VM은 공개 데모를 위해 실행 상태일 수 있으며, 비용 절감을 위해 deallocate하면 backend endpoint는 응답하지 않음
 
-VM이 deallocate 상태이면 Azure backend endpoint는 응답하지 않는다. 이 경우 프론트 검증은 로컬 `docker compose up --build` backend 기준으로 진행한다.
+VM이 deallocate 상태이면 Azure backend endpoint는 응답하지 않는다. 이 경우 공개 Static Web Apps 화면은 열릴 수 있지만 세션 생성, 코드 실행, WebSocket 기능은 실패한다. 프론트 기능 검증은 VM을 다시 시작하거나 로컬 `docker compose up --build` backend 기준으로 진행한다.
 
 ## Frontend 환경변수
 
@@ -25,18 +26,19 @@ VITE_API_BASE_URL=http://localhost:8000
 VITE_WS_BASE_URL=ws://localhost:8000
 ```
 
-현재 검증된 Azure VM backend 기준:
+현재 검증된 Azure 공개 배포 기준:
 
 ```text
-VITE_API_BASE_URL=http://52.231.65.10:8000
-VITE_WS_BASE_URL=ws://52.231.65.10:8000
+VITE_API_BASE_URL=https://cloudterm-backend-3.koreacentral.cloudapp.azure.com
+VITE_WS_BASE_URL=wss://cloudterm-backend-3.koreacentral.cloudapp.azure.com
 ```
 
-Azure Static Web Apps처럼 HTTPS에서 프론트가 뜨면 브라우저 mixed content 정책 때문에 `http://`와 `ws://` 연결이 차단될 수 있다. 그 경우 backend 앞에 HTTPS reverse proxy를 붙인 뒤 아래처럼 바꾼다.
+Azure Static Web Apps workflow는 위 값을 build 환경변수로 주입한다. HTTPS 프론트에서 `http://`와 `ws://` backend를 직접 호출하면 브라우저 mixed content 정책 때문에 차단된다.
+
+Backend VM `.env`의 `FRONTEND_BASE_URL`도 공개 프론트 URL과 맞아야 한다.
 
 ```text
-VITE_API_BASE_URL=https://<BACKEND_DOMAIN>
-VITE_WS_BASE_URL=wss://<BACKEND_DOMAIN>
+FRONTEND_BASE_URL=https://yellow-field-0ad776800.7.azurestaticapps.net
 ```
 
 ## 연결 순서
@@ -94,5 +96,5 @@ VITE_WS_BASE_URL=wss://<BACKEND_DOMAIN>
 - `GET /sessions/{session_id}/runs`로 실행 이력을 불러오고 코드 스냅샷을 복원할 수 있음
 - 댓글/답글 작성 후 목록이 갱신됨
 - WebSocket 이벤트 수신 시 화면이 갱신됨
-- Azure VM backend가 켜져 있을 때 `http://52.231.65.10:8000/health` 기준으로 실제 API 연결 검증 가능
-- HTTPS 프론트 배포에서 mixed content가 발생하면 Cloud/Infra에 HTTPS/WSS reverse proxy 필요를 공유함
+- Azure VM backend가 켜져 있을 때 `https://cloudterm-backend-3.koreacentral.cloudapp.azure.com/health` 기준으로 실제 API 연결 검증 가능
+- Azure Static Web Apps 공개 URL에서 세션 생성, 코드 실행, 댓글/답글, WebSocket 이벤트, 실행 이력 복원 검증 가능

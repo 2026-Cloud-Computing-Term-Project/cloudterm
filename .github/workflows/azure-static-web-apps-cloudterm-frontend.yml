@@ -1,4 +1,4 @@
-name: Deploy Cloudterm Static Web App
+name: Deploy CodeSession Static Web App
 
 on:
   push:

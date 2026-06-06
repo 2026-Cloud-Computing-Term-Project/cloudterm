@@ -1,6 +1,6 @@
 # Frontend
 
-This is the frontend for the Cloudterm / CodeSession project.
+This is the frontend for the CodeSession project.
 
 The frontend is built with Vite, React, TypeScript, and Monaco Editor. It connects to the backend REST API and WebSocket API for session creation, code execution, comments, replies, and realtime event updates.
 
@@ -71,14 +71,14 @@ http://localhost:8000/health
 
 ## Production / Azure Backend
 
-When connecting directly to the Azure VM backend, environment variables can be changed to:
+For the public Azure deployment, the frontend should use the HTTPS/WSS backend endpoint:
 
 ```text
-VITE_API_BASE_URL=http://52.231.65.10:8000
-VITE_WS_BASE_URL=ws://52.231.65.10:8000
+VITE_API_BASE_URL=https://cloudterm-backend-3.koreacentral.cloudapp.azure.com
+VITE_WS_BASE_URL=wss://cloudterm-backend-3.koreacentral.cloudapp.azure.com
 ```
 
-If the frontend is deployed over HTTPS, the backend should also support HTTPS/WSS to avoid browser mixed-content blocking.
+The Static Web Apps workflow at `.github/workflows/azure-static-web-apps-cloudterm-frontend.yml` injects these values during deployment. Direct HTTP/WS access to the Azure VM is only a development/debug path; HTTPS frontends should not call it because browser mixed-content policy blocks insecure API and WebSocket calls.
 
 ## Notes
 

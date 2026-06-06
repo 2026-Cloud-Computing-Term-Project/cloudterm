@@ -12,11 +12,11 @@
 
 - **Amartuvshin (Frontend 담당)**: React + Monaco Editor 기반 UI, 실행 결과 패널, 라인별 질문/답변 화면, WebSocket 알림 표시
 - **황수환 (Backend 담당)**: FastAPI API, 세션/실행/댓글/답글 처리, WebSocket room 관리, PostgreSQL 연동
-- **박찬오 (Cloud/Infra 담당)**: Docker Compose, Azure VM backend stack 배포 검증, Docker 샌드박스 제한, 환경변수 관리, 운영 문서 정리
+- **박찬오 (Cloud/Infra 담당)**: Docker Compose, Azure VM backend stack 배포, HTTPS/WSS reverse proxy, Azure Static Web Apps 배포 설정, Docker 샌드박스 제한, 환경변수 관리, 운영 문서 정리
 
 ## C. 프로젝트 소개
 
-CodeSession은 알고리즘 학습과 코드 멘토링에 특화된 실시간 웹 플랫폼이다. 사용자는 세션 링크로 같은 공간에 들어와 Python 코드를 작성하고 실행할 수 있으며, 실행 결과와 오류 메시지를 바로 확인할 수 있다. 또한 코드의 특정 라인에 질문을 남기면 멘토가 답변을 달고, 이 변경 사항은 WebSocket을 통해 같은 세션 참여자에게 즉시 알려진다.
+CodeSession은 알고리즘 학습과 코드 멘토링에 특화된 실시간 웹 플랫폼이다. 사용자는 공개 배포 URL에 접속해 별도 설치 없이 세션을 만들고, 생성된 세션 링크를 공유해 같은 공간에서 Python 코드를 작성하고 실행할 수 있다. 실행 결과와 오류 메시지는 바로 확인할 수 있으며, 코드의 특정 라인에 질문을 남기면 멘토가 답변을 달고, 이 변경 사항은 WebSocket을 통해 같은 세션 참여자에게 즉시 알려진다.
 
 핵심 구조는 다음과 같다.
 
@@ -24,7 +24,7 @@ CodeSession은 알고리즘 학습과 코드 멘토링에 특화된 실시간 �
 - **Backend**: FastAPI 기반 REST/WebSocket 서버
 - **Runner**: 사용자 코드를 요청마다 일회용 Docker 컨테이너에서 실행하는 내부 서비스
 - **DB**: PostgreSQL에 세션, 실행 로그, 댓글, 답글 저장
-- **Deploy**: 프론트엔드는 정적 빌드 산출물로 제공하고, 백엔드/러너/DB는 Azure VM 내부 Docker Compose 구성을 기준으로 배포
+- **Deploy**: 프론트엔드는 Azure Static Web Apps 정적 배포를 기준으로 제공하고, 백엔드/러너/DB는 Azure VM 내부 Docker Compose 구성과 HTTPS/WSS reverse proxy를 기준으로 배포
 
 이 프로젝트는 단순한 온라인 저지보다 멘토링 상황에 더 가깝게 설계되었다. 정답 판정 자체보다, 실행 결과를 함께 보면서 코드의 특정 줄을 설명하고 토론하는 흐름을 지원하는 것이 목적이다.
 
@@ -75,7 +75,9 @@ CodeSession은 이 문제를 해결하기 위해 사용자 코드를 서버 프�
 - **runner/**: Docker 샌드박스 실행 Runner
 - **docker-compose.yml**: backend, runner, postgres 통합
 - **infra/**: Azure VM backend stack 배포/검증 문서
+- **.github/workflows/**: Azure Static Web Apps 프론트엔드 배포 workflow
 - **docs/api-contract.md**: 프론트와 백엔드가 공유하는 API 계약
+- **공개 배포 URL**: `https://yellow-field-0ad776800.7.azurestaticapps.net`
 
 ### 구현된 기능
 
@@ -86,28 +88,30 @@ CodeSession은 이 문제를 해결하기 위해 사용자 코드를 서버 프�
 - 세션 단위 WebSocket 알림
 - PostgreSQL 저장
 - Runner를 통한 격리 실행
-- Docker Compose 기반 로컬/VM 통합 실행
-- Azure VM 기반 backend/runner/postgres stack 배포 검증
+- Docker Compose 기반 backend/runner/postgres 통합 실행
+- Azure VM 기반 backend/runner/postgres stack 배포
+- Azure Static Web Apps와 HTTPS/WSS backend를 통한 공개 접속 환경 제공
 
 ### 시스템 구성도
 
 ```mermaid
 flowchart LR
-  U[멘토/멘티 브라우저] -->|HTTPS/REST| FE[React + Monaco Frontend]
-  FE -->|POST /sessions<br/>POST /run<br/>POST /comments| BE[FastAPI API / WebSocket Server]
-  FE <-->|WS /ws/sessions/session_id<br/>ping/pong, event broadcast| BE
+  U[멘토/멘티 브라우저] -->|HTTPS| SWA[Azure Static Web Apps<br/>React + Monaco Frontend]
+  SWA -->|HTTPS REST<br/>WSS WebSocket| CADDY[Caddy Reverse Proxy<br/>Azure VM 443]
+  CADDY --> BE[FastAPI API / WebSocket Server]
   BE -->|SQLAlchemy / Alembic| DB[(PostgreSQL)]
-  BE -->|POST /run| R[Runner Service]
+  BE -->|Internal POST /run| R[Runner Service]
   R -->|Docker SDK| D[(One-shot Docker Sandbox Container)]
   D -->|stdout / stderr / exit_code / timed_out| R
   R -->|run result| BE
-  BE -->|session.run.completed<br/>comment.created<br/>reply.created| FE
+  BE -->|session.run.completed<br/>comment.created<br/>reply.created| CADDY
+  CADDY -->|WSS event broadcast| SWA
 ```
 
 ### 동작 흐름
 
-1. 사용자가 프론트엔드에서 세션에 입장한다.
-2. 프론트엔드는 백엔드 REST API로 세션, 코드 실행, 댓글/답글을 요청한다.
+1. 사용자가 공개 프론트엔드 URL에 접속해 세션을 만들거나 공유받은 세션 링크로 입장한다.
+2. Azure Static Web Apps에서 제공되는 React 프론트엔드는 HTTPS/WSS backend endpoint로 세션, 코드 실행, 댓글/답글을 요청한다.
 3. 백엔드는 PostgreSQL에 데이터를 저장한다.
 4. 코드 실행 요청이 들어오면 백엔드는 Runner에 내부 API로 전달한다.
 5. Runner는 Docker 샌드박스 컨테이너를 새로 만들고 Python 코드를 격리 실행한다.
@@ -120,30 +124,44 @@ flowchart LR
 - 백엔드: `GET /health`, `POST /sessions`, `GET /sessions/{session_id}`, `POST /sessions/{session_id}/run`, 댓글/답글 API, WebSocket heartbeat
 - 러너: Python 코드 샌드박스 실행, timeout, 이미지 pull fallback, 컨테이너 삭제
 - 프론트엔드: Monaco Editor 기반 코드 편집 화면, 실행 결과 패널, 실행 이력/코드 스냅샷 복원 UI, 질문/답글 UI, REST API/WebSocket 연동, WebSocket 이벤트 로그
-- 인프라: Docker Compose, Azure VM backend stack 배포 검증, 외부 health check, 포트 정책, 운영 문서
+- 인프라: Docker Compose, Azure VM backend stack 배포, Caddy 기반 HTTPS/WSS reverse proxy, Azure Static Web Apps 배포 workflow, 외부 health check, 포트 정책, 운영 문서
 
-또한 현재 백엔드는 모든 세션 관련 API와 WebSocket 연결에서 `session_id`의 존재 여부를 확인하고, 잘못된 세션 접근은 즉시 거절한다. 외부 사용자는 backend만 호출하고 runner와 PostgreSQL은 Docker Compose 내부 네트워크에서만 접근 가능하게 구성되어 있다. 로컬 통합 검증에서는 세션 생성, 코드 실행, 실행 이력 조회, 코드 스냅샷 복원, 라인별 질문, 답글 작성, WebSocket 알림, 새로고침 후 실행 이력과 질문/답글 유지까지 확인했다.
+또한 현재 백엔드는 모든 세션 관련 API와 WebSocket 연결에서 `session_id`의 존재 여부를 확인하고, 잘못된 세션 접근은 즉시 거절한다. 외부 사용자는 공개 프론트엔드와 backend API/WebSocket까지만 접근하고, runner와 PostgreSQL은 Docker Compose 내부 네트워크에서만 접근 가능하게 구성되어 있다. 로컬 통합 검증과 공개 배포 검증에서는 세션 생성, 코드 실행, 실행 이력 조회, 코드 스냅샷 복원, 라인별 질문, 답글 작성, WebSocket 알림, 새로고침 후 실행 이력과 질문/답글 유지까지 확인했다.
 
 ## G. 개발 결과물을 사용하는 방법 소개 (설치 방법, 동작 방법 등)
 
-### 로컬 서버 실행
+### 공개 서비스 접속
 
-로컬에서는 백엔드, Runner, PostgreSQL은 Docker Compose로 실행하고, 프론트엔드는 `frontend` 폴더에서 별도로 실행한다. 먼저 환경변수 파일을 준비한 뒤 backend stack을 올린다.
+최종 결과물은 공개 URL로 접속해 사용할 수 있다.
+
+- Public service URL: `https://yellow-field-0ad776800.7.azurestaticapps.net`
+- Backend connection: Azure VM의 Caddy reverse proxy를 통한 HTTPS/WSS 연동
+- Backend stack: Azure VM `cloudterm-vm` 내부 Docker Compose `backend`, `runner`, `postgres`
+- HTTPS/WSS proxy: VM 내부 Caddy reverse proxy
+- Frontend deploy: GitHub Actions workflow `.github/workflows/azure-static-web-apps-cloudterm-frontend.yml`
+
+사용자는 위 프론트엔드 URL에 접속해 세션을 생성한 뒤, 생성된 세션 링크를 멘토나 멘티에게 공유하면 된다. 링크를 받은 사용자는 별도 로컬 설치 없이 같은 세션에 들어와 코드 실행 결과, 실행 이력, 라인별 질문/답변을 함께 볼 수 있다.
+
+공개 배포 상태에서는 Azure Static Web Apps에서 제공되는 HTTPS 프론트엔드가 HTTPS/WSS backend endpoint를 호출한다. 브라우저 통합 검증에서는 공개 URL에서 세션 생성, Python 코드 실행, WebSocket 연결, `session.run.completed`/`comment.created` 이벤트 수신, 실행 이력 복원, 댓글 저장 후 새로고침 유지까지 확인했다.
+
+Azure VM에서 외부 공개 대상은 Caddy가 처리하는 `80`/`443`이며, backend `8000`, runner `8001`, PostgreSQL `5432`는 host-local 또는 Docker Compose 내부 접근만 허용하는 구성을 기준으로 한다.
+
+공개 저장소에는 사용자 접속 URL과 배포 구성 식별자만 기록하고, Azure 배포 토큰, DB 비밀번호, SSH key, 실제 `.env` 파일은 포함하지 않는다. backend endpoint는 프론트엔드가 호출하는 공개 API 주소이므로 시크릿으로 보지 않고, 보안 경계는 시크릿 분리, CORS 허용 origin, `session_id` 검증, runner/PostgreSQL 비공개 네트워크 구성으로 둔다.
+
+이 공개 배포에서는 backend VM 환경변수 `FRONTEND_BASE_URL`을 Static Web Apps URL로 맞춰 CORS 허용 origin과 세션 공유 링크가 실제 프론트 주소를 사용하도록 구성한다.
+
+Azure VM의 PostgreSQL은 Docker named volume에 데이터를 저장한다. 사용자의 로컬 컴퓨터를 종료해도 공개 배포 서비스에는 영향이 없지만, Azure VM을 deallocate하면 backend/API/WebSocket/Runner/DB 컨테이너가 중지되어 프론트엔드에서 세션 기능은 동작하지 않는다.
+
+### 개발자 로컬 재현
+
+공개 배포 서비스와 별개로, 개발자는 저장소를 받은 뒤 로컬에서 같은 backend/runner/postgres 구성을 재현할 수 있다.
 
 ```powershell
 Copy-Item .env.example .env
 docker compose up --build -d
 ```
 
-이 명령으로 아래 서비스가 실행된다.
-
-- Backend API: `http://localhost:8000`
-- Runner internal API: `http://runner:8001`
-- PostgreSQL: `localhost:5432`
-
-제출 기준 데이터베이스는 빈 PostgreSQL에서 시작하는 구성을 기준으로 한다. PostgreSQL 데이터 자체나 Docker volume은 제출물이 아니며, backend 컨테이너가 시작될 때 Alembic migration을 실행해 필요한 테이블을 생성한다. 이미 예전 버전으로 실행한 로컬 `postgres-data` volume이 남아 있으면 현재 스키마와 충돌할 수 있으므로, 기존 데이터를 보존할 필요가 없는 로컬 환경에서만 volume을 초기화한 뒤 다시 실행한다.
-
-프론트엔드는 별도 터미널에서 실행한다.
+이 명령은 로컬 PC의 `127.0.0.1`에만 backend `8000`, runner `8001`, PostgreSQL `5432`를 바인딩한다. 프론트엔드는 별도 터미널에서 실행한다.
 
 ```bash
 cd frontend
@@ -151,20 +169,19 @@ npm install
 npm run dev
 ```
 
-기본 접속 주소는 `http://localhost:5173/` 이다.
-
-실행 후에는 브라우저에서 프론트엔드 접속 주소를 열고 세션 생성, 코드 실행, 질문/답변 흐름을 확인한다. 전체 연동 상태를 점검하고 싶으면 아래 스모크 테스트를 실행한다.
+기본 로컬 접속 주소는 `http://localhost:5173/` 이다. 전체 연동 상태를 점검하고 싶으면 아래 스모크 테스트를 실행한다.
 
 ```bash
 python scripts/compose-smoke-test.py
 ```
 
-이 스모크 테스트는 세션 생성, 코드 실행, 실행 이력 조회, 댓글/답글, 기본 연동 흐름을 확인하는 용도다.
+로컬 PostgreSQL volume은 개발자 개인 재현 환경의 데이터 저장소일 뿐이며, 제출용 공개 서비스의 사용자 접속 방식과는 별개다.
 
 ## H. 개발 결과물의 활용방안 소개
 
 CodeSession은 다음과 같은 환경에서 활용할 수 있다.
 
+- 공개 URL과 세션 링크만 공유해 별도 설치 없이 원격 멘토링 진행
 - 알고리즘 스터디에서 멘토와 멘티가 같은 세션을 보며 코드 리뷰
 - 코딩 테스트를 준비할 때 코드 실행 결과와 오류를 빠르게 공유
 - 대학 프로그래밍 수업에서 실습 보조 도구로 사용
