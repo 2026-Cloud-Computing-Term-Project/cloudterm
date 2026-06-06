@@ -61,9 +61,11 @@ winget install -e --id Docker.DockerDesktop
 - Azure VM 배포 절차와 포트 정책은 `infra/azure-vm-deployment.md`를 기준으로 한다.
 - 실제 배포 검증 증거와 역할 완료 판단은 `infra/evidence.md`를 기준으로 한다.
 - 실제 Azure VM backend stack 배포 검증은 `cloudterm-rg`의 `cloudterm-vm`에서 완료됐다.
-- 현재 검증된 backend health endpoint는 `http://52.231.65.10:8000/health`다.
-- frontend 배포 시 API/WebSocket 환경변수는 `infra/azure-vm-deployment.md`의 현재 검증값을 기준으로 맞춘다.
-- 비용 절감을 위해 VM이 deallocate 상태이면 backend endpoint는 응답하지 않는다. 실제 Azure 검증 전 VM을 다시 시작한다.
+- 현재 검증된 backend health endpoint는 `https://cloudterm-backend-3.koreacentral.cloudapp.azure.com/health`다.
+- 현재 검증된 frontend 공개 URL은 `https://yellow-field-0ad776800.7.azurestaticapps.net`다.
+- frontend 배포 시 API/WebSocket 환경변수는 `infra/azure-vm-deployment.md`의 HTTPS/WSS 검증값을 기준으로 맞춘다.
+- compose host port binding은 `127.0.0.1`로 제한해 backend/runner/postgres가 LAN 또는 public IP로 직접 노출되지 않게 한다.
+- 비용 절감을 위해 VM이 deallocate 상태이면 backend/API/WebSocket/Runner/DB는 응답하지 않는다. 실제 Azure 검증 전 VM을 다시 시작한다.
 
 주의:
 

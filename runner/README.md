@@ -24,6 +24,7 @@ Runner API 요청/응답 형식은 `docs/api-contract.md`를 기준으로 한다
 주의:
 
 - runner 컨테이너는 Docker 데몬에 접근해야 하므로 `docker.sock` 마운트가 필요하다.
+- runner API는 Docker daemon 접근 권한을 간접적으로 가지므로 public internet에 직접 노출하지 않는다. compose host port는 로컬 debug용 `127.0.0.1` binding만 허용한다.
 - 샌드박스 이미지는 기본값으로 `python:3.12-slim`을 사용한다.
 - 샌드박스 제한값은 `RUNNER_SANDBOX_*` 환경변수로 조정할 수 있다.
 

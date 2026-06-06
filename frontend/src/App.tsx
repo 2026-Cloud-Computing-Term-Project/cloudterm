@@ -406,8 +406,8 @@ function App() {
 
         <section className="hub">
           <div className="hub-hero">
-            <p className="eyebrow">Cloudterm</p>
-            <h1>Cloudterm Code Mentoring</h1>
+            <p className="eyebrow">CodeSession</p>
+            <h1>CodeSession Code Mentoring</h1>
             <p className="subtitle">
               Create a coding session, run Python code inside a Docker sandbox,
               and discuss line-based questions in realtime.
@@ -487,7 +487,7 @@ function App() {
 
       <header className="topbar">
         <div>
-          <p className="eyebrow">Cloudterm Workspace</p>
+          <p className="eyebrow">CodeSession Workspace</p>
           <h1>{session.title}</h1>
           <p className="subtitle">
             Write Python code, run it safely inside a Docker sandbox, and discuss
@@ -557,7 +557,7 @@ function App() {
                 type="button"
                 className="secondary-button"
                 onClick={() =>
-                  setCode(`print("Hello from Cloudterm!")
+                  setCode(`print("Hello from CodeSession!")
 numbers = [1, 2, 3, 4]
 print("Total:", sum(numbers))
 `)
