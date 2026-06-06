@@ -75,6 +75,30 @@ Response:
 }
 ```
 
+### GET /sessions/{session_id}/runs
+
+현재 세션의 실행 이력을 최신순으로 조회한다. 각 항목에는 실행 당시 코드와 stdin도 포함되므로, 프론트엔드는 이전 실행 결과와 코드 스냅샷을 복원할 수 있다.
+
+Response:
+
+```json
+{
+  "runs": [
+    {
+      "run_id": "uuid",
+      "language": "python",
+      "code": "print('hello')",
+      "stdin": "",
+      "stdout": "hello\n",
+      "stderr": "",
+      "exit_code": 0,
+      "timed_out": false,
+      "created_at": "2026-06-06T00:00:00Z"
+    }
+  ]
+}
+```
+
 ### GET /sessions/{session_id}/comments
 
 세션에 달린 라인별 질문과 답변 목록을 조회한다.
@@ -159,6 +183,13 @@ Response:
 ### WS /ws/sessions/{session_id}
 
 세션 단위 실시간 알림 채널이다. 초기 범위는 공동 편집이 아니라 실행 결과와 질문/답변 갱신 알림이다.
+
+Heartbeat policy:
+
+- 클라이언트는 연결 유지용으로 주기적으로 `"ping"` 메시지를 보낼 수 있다.
+- 백엔드는 `"ping"`을 받으면 `{"type":"pong"}`으로 응답한다.
+- `"pong"` 메시지는 연결 유지 확인용으로 허용한다.
+- `HEARTBEAT_TIMEOUT_SECONDS` 동안 메시지가 없으면 백엔드는 연결을 종료한다.
 
 Server events:
 
