@@ -20,6 +20,13 @@ export type RunResult = {
   timed_out: boolean
 }
 
+export type RunHistoryItem = RunResult & {
+  language: 'python'
+  code: string
+  stdin: string
+  created_at: string
+}
+
 export type Reply = {
   reply_id: string
   comment_id?: string
@@ -74,6 +81,10 @@ export function runCode(sessionId: string, code: string, stdin = '') {
       stdin,
     }),
   })
+}
+
+export function getRuns(sessionId: string) {
+  return request<{ runs: RunHistoryItem[] }>(`/sessions/${sessionId}/runs`)
 }
 
 export function getComments(sessionId: string) {

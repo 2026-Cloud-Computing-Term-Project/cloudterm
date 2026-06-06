@@ -16,10 +16,11 @@
 - 비용 절감을 위한 VM deallocate
 - 프론트 실제 연동을 위한 backend endpoint, env, WebSocket 기준 정리
 
-프론트/백엔드 담당 산출물이 필요한 범위:
+프론트/백엔드 담당 산출물과 함께 최종 확인된 범위:
 
-- 프론트 mock UI를 실제 REST API와 WebSocket으로 교체
-- Azure Static Web Apps 배포 후 HTTPS 환경에서 mixed content 발생 여부 확인
+- 프론트는 실제 REST API와 WebSocket으로 연결됨
+- 실행 이력 조회와 코드 스냅샷 복원까지 로컬 브라우저 통합 검증됨
+- Azure Static Web Apps 배포를 별도로 수행할 경우 HTTPS 환경에서 mixed content 발생 여부를 확인해야 함
 - HTTPS 프론트에서 HTTP/WS backend 호출이 막히면 Cloud/Infra가 reverse proxy 또는 HTTPS/WSS 구성을 추가
 
 ## Azure 리소스
@@ -75,6 +76,7 @@ Azure VM
 | Backend internal health | `curl http://127.0.0.1:8000/health` 응답 |
 | Runner internal health | `curl http://127.0.0.1:8001/health` 응답 |
 | Smoke test | `python3 scripts/compose-smoke-test.py` 통과 |
+| Frontend local integration | 세션 생성, 코드 실행, 실행 이력, 코드 스냅샷 복원, 댓글/답글, WebSocket 알림 확인 |
 | Backend external health | `http://52.231.65.10:8000/health` 응답 확인 |
 | Runner external exposure | `8001` 외부 접근 차단 확인 |
 | PostgreSQL external exposure | `5432` 외부 접근 차단 확인 |
@@ -93,8 +95,9 @@ Deallocate 후 backend endpoint가 응답하지 않는 것은 정상이다. 실�
 6. VM 내부에서 `python3 scripts/compose-smoke-test.py`를 실행한다.
 7. 외부 PC에서 `http://52.231.65.10:8000/health`를 확인한다.
 8. 프론트 환경변수 `VITE_API_BASE_URL`, `VITE_WS_BASE_URL`이 현재 backend 주소를 가리키는지 확인한다.
-9. HTTPS 프론트 배포에서 mixed content가 발생하면 HTTPS/WSS reverse proxy 구성을 추가한다.
+9. 세션 생성, 코드 실행, 실행 이력, 코드 스냅샷 복원, 댓글/답글, WebSocket 알림을 브라우저에서 확인한다.
+10. HTTPS 프론트 배포에서 mixed content가 발생하면 HTTPS/WSS reverse proxy 구성을 추가한다.
 
 ## 역할 완료 판단
 
-Cloud & Infra 기준으로 완료된 것은 Azure VM backend stack 배포와 검증이다. 프로젝트 전체 기준으로는 프론트 실제 API/WebSocket 연동이 끝난 뒤 최종 통합 검증이 필요하다.
+Cloud & Infra 기준으로 완료된 것은 Azure VM backend stack 배포와 검증이다. 프로젝트 전체 기준 로컬 통합 검증은 프론트 실제 API/WebSocket 연동, 실행 이력, 코드 스냅샷 복원까지 완료됐다. Azure Static Web Apps와 HTTPS/WSS 검증은 별도 공개 배포를 선택할 때 필요한 운영 검증이다.

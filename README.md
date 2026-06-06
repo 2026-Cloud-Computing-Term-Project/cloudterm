@@ -1,164 +1,188 @@
-# Cloudterm
+# 최종 보고서
 
-클라우드컴퓨팅 텀 프로젝트 모노레포다. 팀원은 이 문서를 먼저 보고, 상세 운영 규칙은 `docs/team-development-guide.md`, 현재 완료/다음 작업은 `docs/project-status.md`를 확인한다.
+## A. 프로젝트 명
 
-## 지금 상태
+**CodeSession**
 
-- GitHub repo, `main`, `dev` 브랜치 생성 완료
-- 초기 모노레포 폴더와 기본 문서 생성 완료
-- API 계약과 환경변수 이름 고정 완료
-- 백엔드 core 기능과 runner API 구현 완료
-- `docker-compose.yml`은 PostgreSQL, backend, runner 서비스를 포함함
-- `docker compose config` 검증 완료
-- `docker compose up -d postgres`와 PostgreSQL readiness 검증 완료
+부제: **Docker 샌드박스 기반 실시간 알고리즘 코드 멘토링 플랫폼**
 
-## 제안서 기준 범위
+이 프로젝트는 멘토와 멘티가 같은 세션 안에서 코드를 실행하고, 실행 결과와 오류 메시지를 공유하며, 특정 코드 라인에 대해 질문과 답변을 주고받을 수 있는 웹 기반 멘토링 서비스이다.
 
-- 주제: Docker 샌드박스 기반 실시간 알고리즘 코드 멘토링 플랫폼
-- 프론트엔드: React, Monaco Editor, 라인별 질문/답변 UI, WebSocket 알림
-- 백엔드: FastAPI API/WebSocket Server, PostgreSQL 저장, Runner 내부 API 호출
-- Runner: 요청마다 일회용 Docker 컨테이너를 생성해 Python 단일 파일 코드를 격리 실행
-- 배포 기준: 프론트엔드는 Azure Static Web Apps, 백엔드/Runner/PostgreSQL은 Azure VM의 Docker Compose
-- 제외 범위: 로그인/회원가입, 실시간 공동 편집, Kubernetes, Redis Queue, Auto Scaling
+## B. 프로젝트 멤버 이름 및 멤버 별 담당한 파트 소개
 
-## 팀원이 처음 할 일
+- **Amartuvshin (Frontend 담당)**: React + Monaco Editor 기반 UI, 실행 결과 패널, 라인별 질문/답변 화면, WebSocket 알림 표시
+- **황수환 (Backend 담당)**: FastAPI API, 세션/실행/댓글/답글 처리, WebSocket room 관리, PostgreSQL 연동
+- **박찬오 (Cloud/Infra 담당)**: Docker Compose, Azure VM backend stack 배포 검증, Docker 샌드박스 제한, 환경변수 관리, 운영 문서 정리
 
-```bash
-git clone https://github.com/2026-Cloud-Computing-Term-Project/cloudterm.git
-cd cloudterm
-git switch dev
+## C. 프로젝트 소개
+
+CodeSession은 알고리즘 학습과 코드 멘토링에 특화된 실시간 웹 플랫폼이다. 사용자는 세션 링크로 같은 공간에 들어와 Python 코드를 작성하고 실행할 수 있으며, 실행 결과와 오류 메시지를 바로 확인할 수 있다. 또한 코드의 특정 라인에 질문을 남기면 멘토가 답변을 달고, 이 변경 사항은 WebSocket을 통해 같은 세션 참여자에게 즉시 알려진다.
+
+핵심 구조는 다음과 같다.
+
+- **Frontend**: React, Monaco Editor 기반 코드 편집 화면, 결과 UI, REST/WebSocket 연동
+- **Backend**: FastAPI 기반 REST/WebSocket 서버
+- **Runner**: 사용자 코드를 요청마다 일회용 Docker 컨테이너에서 실행하는 내부 서비스
+- **DB**: PostgreSQL에 세션, 실행 로그, 댓글, 답글 저장
+- **Deploy**: 프론트엔드는 정적 빌드 산출물로 제공하고, 백엔드/러너/DB는 Azure VM 내부 Docker Compose 구성을 기준으로 배포
+
+이 프로젝트는 단순한 온라인 저지보다 멘토링 상황에 더 가깝게 설계되었다. 정답 판정 자체보다, 실행 결과를 함께 보면서 코드의 특정 줄을 설명하고 토론하는 흐름을 지원하는 것이 목적이다.
+
+## D. 프로젝트 필요성 소개
+
+알고리즘 멘토링에서는 참여자마다 개발 환경이 다르기 때문에, 같은 코드도 다른 결과를 낼 수 있다. 특히 멘티가 작성한 코드는 무한 루프, 과도한 메모리 사용, 비정상 종료, 파일 시스템 접근 같은 위험을 가질 수 있어, 서버 안정성을 지키면서 실행하는 구조가 필요하다.
+
+CodeSession은 이 문제를 해결하기 위해 사용자 코드를 서버 프로세스에서 직접 실행하지 않고, Runner가 요청마다 일회용 Docker 샌드박스 컨테이너를 생성하여 격리 실행하도록 설계했다. 실행이 끝나면 stdout, stderr, 종료 코드, timeout 여부만 수집하고 컨테이너는 삭제된다.
+
+해당 프로젝트의 필요성은 크게 세 가지로 요약할 수 있다.
+
+- **안전성**: 신뢰할 수 없는 코드를 서버와 분리된 컨테이너에서 실행
+- **재현성**: 동일한 실행 환경과 제한 조건을 통해 결과를 일관되게 확인
+- **협업성**: 질문/답변과 실행 결과를 한 세션에 묶어 실시간 멘토링 가능
+
+## E. 관련 기술/논문/특허 조사 내용 소개
+
+직접적인 논문/특허 조사보다는, 유사한 기능을 제공하는 제품과 기술을 중심으로 선행 사례를 조사했다.
+
+### 관련 제품 및 기술
+
+- **Replit / CodeSandbox**
+  - 브라우저 기반 개발 환경과 협업 기능을 제공한다.
+  - 다만 프로젝트 단위 기능이 많아, 단일 알고리즘 파일을 빠르게 실행하고 라인별 멘토링을 하는 흐름에는 상대적으로 무겁다.
+  - 출처: https://replit.com, https://codesandbox.io
+
+- **VS Code Live Share / JetBrains Code With Me**
+  - 로컬 IDE 화면을 공유하며 협업할 수 있는 강력한 도구다.
+  - 하지만 참여자가 특정 IDE와 계정을 준비해야 하며, 웹 브라우저만으로 접속해 실행 결과와 질의응답을 관리하는 구조와는 목적이 다르다.
+  - 출처: https://visualstudio.microsoft.com/services/live-share/, https://www.jetbrains.com/code-with-me/
+
+- **온라인 저지 및 자동 채점 서비스**
+  - 프로그래머스 같은 서비스는 제출 코드 실행과 채점에 특화되어 있다.
+  - CodeSession은 정답 판정보다 멘토링 세션 안에서 코드 실행 결과를 공유하고 설명하는 과정에 초점을 둔다.
+  - 출처: https://programmers.co.kr
+
+- **GitHub Pull Request Review**
+  - 코드 라인 단위 코멘트 기능은 유사하지만, 비동기 PR 리뷰 도구이다.
+  - CodeSession은 PR 없이 하나의 세션 안에서 실행 결과, 질문, 답변, 실행 로그를 관리한다.
+  - 출처: https://github.com/features/code-review
+
+## F. 프로젝트 개발 결과물 소개 (+ 다이어그램)
+
+현재 저장소 기준 개발 결과물은 다음과 같다.
+
+- **frontend/**: Vite React TypeScript 기반 프론트엔드, Monaco Editor, REST API/WebSocket 클라이언트
+- **backend/**: FastAPI REST/WebSocket 서버
+- **runner/**: Docker 샌드박스 실행 Runner
+- **docker-compose.yml**: backend, runner, postgres 통합
+- **infra/**: Azure VM backend stack 배포/검증 문서
+- **docs/api-contract.md**: 프론트와 백엔드가 공유하는 API 계약
+
+### 구현된 기능
+
+- 세션 생성 및 조회
+- 코드 실행 요청 및 결과 저장
+- 실행 이력 조회 및 실행 당시 코드 스냅샷 복원
+- 라인별 질문 작성 및 답글 작성
+- 세션 단위 WebSocket 알림
+- PostgreSQL 저장
+- Runner를 통한 격리 실행
+- Docker Compose 기반 로컬/VM 통합 실행
+- Azure VM 기반 backend/runner/postgres stack 배포 검증
+
+### 시스템 구성도
+
+```mermaid
+flowchart LR
+  U[멘토/멘티 브라우저] -->|HTTPS/REST| FE[React + Monaco Frontend]
+  FE -->|POST /sessions<br/>POST /run<br/>POST /comments| BE[FastAPI API / WebSocket Server]
+  FE <-->|WS /ws/sessions/session_id<br/>ping/pong, event broadcast| BE
+  BE -->|SQLAlchemy / Alembic| DB[(PostgreSQL)]
+  BE -->|POST /run| R[Runner Service]
+  R -->|Docker SDK| D[(One-shot Docker Sandbox Container)]
+  D -->|stdout / stderr / exit_code / timed_out| R
+  R -->|run result| BE
+  BE -->|session.run.completed<br/>comment.created<br/>reply.created| FE
 ```
 
-역할별 브랜치:
+### 동작 흐름
 
-```bash
-git switch -c feat/frontend-editor
-git switch -c feat/backend-api
-git switch -c feat/cloud-compose-runner
-```
+1. 사용자가 프론트엔드에서 세션에 입장한다.
+2. 프론트엔드는 백엔드 REST API로 세션, 코드 실행, 댓글/답글을 요청한다.
+3. 백엔드는 PostgreSQL에 데이터를 저장한다.
+4. 코드 실행 요청이 들어오면 백엔드는 Runner에 내부 API로 전달한다.
+5. Runner는 Docker 샌드박스 컨테이너를 새로 만들고 Python 코드를 격리 실행한다.
+6. 실행 결과는 백엔드로 돌아오고, 백엔드는 결과를 저장한 뒤 WebSocket으로 세션 참여자에게 알린다.
 
-작업 시작 전 반드시 확인할 파일:
+### 현재 구현 상태
 
-1. `docs/project-status.md`
-2. `docs/team-development-guide.md`
-3. `docs/api-contract.md`
-4. `.env.example`
-5. 본인 담당 폴더의 `README.md`
+실제 구현은 제안서의 전체 방향을 기반으로 진행되었고, 현재 저장소에서는 아래 범위가 확인된다.
 
-Azure VM 배포 절차와 포트 정책은 `infra/azure-vm-deployment.md`를 기준으로 한다.
+- 백엔드: `GET /health`, `POST /sessions`, `GET /sessions/{session_id}`, `POST /sessions/{session_id}/run`, 댓글/답글 API, WebSocket heartbeat
+- 러너: Python 코드 샌드박스 실행, timeout, 이미지 pull fallback, 컨테이너 삭제
+- 프론트엔드: Monaco Editor 기반 코드 편집 화면, 실행 결과 패널, 실행 이력/코드 스냅샷 복원 UI, 질문/답글 UI, REST API/WebSocket 연동, WebSocket 이벤트 로그
+- 인프라: Docker Compose, Azure VM backend stack 배포 검증, 외부 health check, 포트 정책, 운영 문서
 
-Azure VM backend stack 배포 검증은 완료됐다. 검증된 backend health endpoint는 `http://52.231.65.10:8000/health`이며, frontend 실제 API/WebSocket 연동 시 `infra/azure-vm-deployment.md`의 Azure VM 환경변수 값을 기준으로 한다. 현재 VM이 비용 절감을 위해 deallocate 상태이면 이 endpoint는 응답하지 않으므로 실제 Azure 연결 검증 전 VM을 다시 시작한다.
+또한 현재 백엔드는 모든 세션 관련 API와 WebSocket 연결에서 `session_id`의 존재 여부를 확인하고, 잘못된 세션 접근은 즉시 거절한다. 외부 사용자는 backend만 호출하고 runner와 PostgreSQL은 Docker Compose 내부 네트워크에서만 접근 가능하게 구성되어 있다. 로컬 통합 검증에서는 세션 생성, 코드 실행, 실행 이력 조회, 코드 스냅샷 복원, 라인별 질문, 답글 작성, WebSocket 알림, 새로고침 후 실행 이력과 질문/답글 유지까지 확인했다.
 
-Cloud/Infra 실제 배포 증거와 최종 데모 전 재검증 체크리스트는 `infra/evidence.md`를 기준으로 한다.
+## G. 개발 결과물을 사용하는 방법 소개 (설치 방법, 동작 방법 등)
 
-프론트엔드가 mock UI를 실제 backend와 연결할 때는 `docs/frontend-integration-guide.md`와 `docs/api-contract.md`를 함께 본다.
+### 로컬 서버 실행
 
-## 프로젝트 구조
-
-```text
-cloudterm/
-  frontend/          # React, Monaco Editor, WebSocket client
-  backend/           # FastAPI API, WebSocket, DB model
-  runner/            # 사용자 코드 실행 Runner service
-  infra/             # Azure VM, Nginx, firewall, deployment docs/scripts
-  docs/
-    README.md
-    api-contract.md
-    project-status.md
-    team-development-guide.md
-    deliverables/
-    templates/
-  docker-compose.yml
-  .env.example
-  .gitignore
-  .gitattributes
-  .editorconfig
-  README.md
-```
-
-루트에는 개발자가 바로 봐야 하는 프로젝트 운영 문서와 실행 파일만 둔다. 제안서, 중간보고서, 최종보고서, 발표자료 같은 제출 산출물은 `docs/deliverables/`, 수업 제공 양식은 `docs/templates/`에 둔다.
-
-## 역할별 첫 목표
-
-| 역할 | 첫 브랜치 | 첫 작업 |
-| --- | --- | --- |
-| Frontend | `feat/frontend-editor` | Vite React scaffold, 세션 입장 화면, Monaco Editor 기반 편집 화면 초안 |
-| Backend | `feat/backend-api` | FastAPI scaffold, health check, 세션/API 계약 구현 시작 |
-| Cloud & Infra | `feat/cloud-compose-runner` | Docker Compose 검증, backend/runner/postgres 서비스 구성, Runner 실행 제한 설계 |
-
-`runner/`는 공동 영역이다. Runner API 요청/응답 형식은 Backend가 잡고, Runner 컨테이너 실행 제한과 배포 환경은 Cloud & Infra가 잡는다.
-
-## 초기 작업 순서
-
-완전한 순차 진행은 아니다. 세 역할이 동시에 시작하되, 아래 순서로 합쳐야 덜 막힌다.
-
-| 순서 | 담당 | 완료 기준 | 다음 담당에게 풀리는 것 |
-| --- | --- | --- | --- |
-| 1 | Backend | FastAPI app, health check, 세션 API skeleton | Cloud & Infra가 backend service를 compose에 연결 가능 |
-| 2 | Backend + Runner | `POST /run` skeleton과 요청/응답 모델 | Frontend가 실행 결과 연동 가능, Cloud & Infra가 runner service를 compose에 연결 가능 |
-| 3 | Cloud & Infra | postgres/backend/runner compose 연결과 health check | Backend/Runner를 같은 compose network에서 검증 가능 |
-| 4 | Frontend | Vite/React/Monaco 화면과 mock 상태 | Backend API가 준비되는 즉시 실제 API로 교체 가능 |
-| 5 | 전체 | 세션 생성, 코드 실행, 질문/답변, WebSocket 흐름 통합 | 중간보고서와 데모 시나리오 작성 가능 |
-
-Frontend는 Backend를 기다리지 말고 `docs/api-contract.md` 기준 mock으로 화면을 먼저 만든다. Backend와 Cloud & Infra는 health check와 포트부터 맞춘 뒤 Runner 제한 실행을 붙인다.
-
-## 로컬 준비
-
-환경변수 이름은 `.env.example`을 기준으로 맞춘다. 실제 `.env`는 Git에 올리지 않는다.
+로컬에서는 백엔드, Runner, PostgreSQL은 Docker Compose로 실행하고, 프론트엔드는 `frontend` 폴더에서 별도로 실행한다. 먼저 환경변수 파일을 준비한 뒤 backend stack을 올린다.
 
 ```powershell
 Copy-Item .env.example .env
-```
-
-`docker-compose.yml`에는 PostgreSQL, backend, runner 서비스가 포함되어 있다. backend는 시작 시 Alembic으로 최신 스키마까지 마이그레이션을 적용한다.
-
-```powershell
 docker compose up --build -d
 ```
 
-전체 통합 흐름을 빠르게 확인하려면 아래 스모크 테스트를 사용한다.
+이 명령으로 아래 서비스가 실행된다.
+
+- Backend API: `http://localhost:8000`
+- Runner internal API: `http://runner:8001`
+- PostgreSQL: `localhost:5432`
+
+제출 기준 데이터베이스는 빈 PostgreSQL에서 시작하는 구성을 기준으로 한다. PostgreSQL 데이터 자체나 Docker volume은 제출물이 아니며, backend 컨테이너가 시작될 때 Alembic migration을 실행해 필요한 테이블을 생성한다. 이미 예전 버전으로 실행한 로컬 `postgres-data` volume이 남아 있으면 현재 스키마와 충돌할 수 있으므로, 기존 데이터를 보존할 필요가 없는 로컬 환경에서만 volume을 초기화한 뒤 다시 실행한다.
+
+프론트엔드는 별도 터미널에서 실행한다.
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+기본 접속 주소는 `http://localhost:5173/` 이다.
+
+실행 후에는 브라우저에서 프론트엔드 접속 주소를 열고 세션 생성, 코드 실행, 질문/답변 흐름을 확인한다. 전체 연동 상태를 점검하고 싶으면 아래 스모크 테스트를 실행한다.
 
 ```bash
 python scripts/compose-smoke-test.py
 ```
 
-전제:
+이 스모크 테스트는 세션 생성, 코드 실행, 실행 이력 조회, 댓글/답글, 기본 연동 흐름을 확인하는 용도다.
 
-- `docker compose up --build`로 `postgres`, `backend`, `runner`가 떠 있어야 한다.
-- 기본 포트는 `8000`과 `8001`이다.
+## H. 개발 결과물의 활용방안 소개
 
-현재 로컬/최종 배포 검증은 빈 PostgreSQL volume 기준이다. 이전 backend 버전에서 `create_all`로 만든 테이블이 남아 있는 로컬 DB는 Alembic 초기 마이그레이션과 충돌할 수 있다. 기존 로컬 DB 데이터를 보존할 필요가 없을 때만 본인 환경에서 `docker compose down -v`로 PostgreSQL volume을 초기화한 뒤 다시 실행한다. 이 명령은 로컬 PostgreSQL 데이터를 삭제한다.
+CodeSession은 다음과 같은 환경에서 활용할 수 있다.
 
-Docker 명령이 인식되지 않으면 Docker Desktop을 설치하거나 PATH를 확인한다.
+- 알고리즘 스터디에서 멘토와 멘티가 같은 세션을 보며 코드 리뷰
+- 코딩 테스트를 준비할 때 코드 실행 결과와 오류를 빠르게 공유
+- 대학 프로그래밍 수업에서 실습 보조 도구로 사용
+- 원격 멘토링에서 라인별 질문과 답변 기록을 남기는 학습 도구로 사용
 
-```powershell
-winget install -e --id Docker.DockerDesktop
-```
+이 프로젝트의 핵심 가치는 “코드 실행” 자체보다, 실행 결과를 중심으로 한 학습과 피드백의 흐름을 안전하게 만드는 데 있다.
 
-설치 직후에도 `docker` 명령이 안 잡히면 새 터미널을 열거나 Docker Desktop이 실행 중인지 확인한다.
+## I. AI 활용 (어떤 AI를 사용하여 개발했으며, 전체 코드의 몇 %가 AI로 개발되었는지를 설명)
 
-## API 계약
+본 프로젝트에서는 ChatGPT 계열 AI 보조 도구(Codex 포함)를 문서 정리, 코드 구조 초안 생성, 반복적인 보일러플레이트 작성, 테스트 초안 작성, 보고서 문장 정리에 활용했다.
 
-초기 API 경로와 Runner 내부 API는 `docs/api-contract.md`를 기준으로 한다. 프론트엔드와 백엔드가 동시에 작업할 수 있도록 endpoint path, request/response 필드, WebSocket event 이름을 변경할 때는 해당 문서를 먼저 갱신한다.
+AI 활용 범위는 주로 다음과 같다.
 
-## 브랜치 규칙
+- README 및 보고서 구조 정리
+- API 계약 문서 초안 정리
+- FastAPI / React / Docker 관련 반복 코드 초안
+- 테스트 코드와 설명 문구 정리
 
-```text
-main                  # 제출 가능한 안정 버전
-dev                   # 통합 개발 브랜치
-feat/frontend-*       # 프론트엔드 작업
-feat/backend-*        # 백엔드 작업
-feat/cloud-*          # 클라우드/Runner/배포 작업
-docs/*                # 보고서, 발표자료, 데모 문서 작업
-```
+핵심 설계, 프로젝트 방향 설정, API 흐름 결정, 샌드박스 제한 조건, 배포 구조, 실제 통합 판단은 사람이 직접 수행했다.
 
-- `main`에 직접 push하지 않는다.
-- 각자 `feat/...` 브랜치에서 작업한 뒤 PR로 `dev`에 합친다.
-- 실행 방법, 환경변수, API 계약이 바뀌면 관련 README 또는 `docs/api-contract.md`도 같이 갱신한다.
-
-## 저장소 기본 설정 파일
-
-- `.editorconfig`: 에디터가 들여쓰기, LF 줄바꿈, 마지막 newline 규칙을 맞추도록 한다.
-- `.gitattributes`: Git이 텍스트 파일 줄바꿈은 LF로, 이미지/PDF/DOCX는 binary로 다루도록 한다.
-
-이 두 파일은 팀원 OS와 에디터가 달라도 쓸데없는 줄바꿈 diff가 생기지 않게 하는 장치다.
+전체 코드 기준으로 보면 AI가 직접 작성했거나 직접 작성에 준하는 수준으로 큰 도움을 준 비율은 약 30~40% 정도로 예상된다. 특히 반복적인 보일러플레이트, 초기 컴포넌트 초안, 테스트 코드 초안, 문서 정리는 AI의 보조 비중이 높았고, 핵심 아키텍처와 보안 정책, API 계약, 배포 방식은 사람이 주도했다.

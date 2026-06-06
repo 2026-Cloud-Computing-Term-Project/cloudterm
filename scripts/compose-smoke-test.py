@@ -72,6 +72,15 @@ def main() -> int:
     assert_true(run_result.get("exit_code") == 0, "Run exit code mismatch")
     assert_true(not run_result.get("timed_out"), "Run timed out unexpectedly")
 
+    print("Listing runs...")
+    runs = request_json("GET", f"{args.backend_base_url}/sessions/{session_id}/runs")
+    saved_runs = runs.get("runs", [])
+    assert_true(len(saved_runs) >= 1, "Run history is empty")
+    latest_run = saved_runs[0]
+    assert_true(latest_run.get("run_id") == run_result.get("run_id"), "Latest run id mismatch")
+    assert_true(latest_run.get("code") == "print('hello from smoke test')", "Saved run code mismatch")
+    assert_true(latest_run.get("stdout") == "hello from smoke test\n", "Saved run stdout mismatch")
+
     print("Creating comment...")
     comment = request_json(
         "POST",

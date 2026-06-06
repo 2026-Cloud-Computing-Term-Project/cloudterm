@@ -75,6 +75,30 @@ Response:
 }
 ```
 
+### GET /sessions/{session_id}/runs
+
+현재 세션의 실행 이력을 최신순으로 조회한다. 각 항목에는 실행 당시 코드와 stdin도 포함되므로, 프론트엔드는 이전 실행 결과와 코드 스냅샷을 복원할 수 있다.
+
+Response:
+
+```json
+{
+  "runs": [
+    {
+      "run_id": "uuid",
+      "language": "python",
+      "code": "print('hello')",
+      "stdin": "",
+      "stdout": "hello\n",
+      "stderr": "",
+      "exit_code": 0,
+      "timed_out": false,
+      "created_at": "2026-06-06T00:00:00Z"
+    }
+  ]
+}
+```
+
 ### GET /sessions/{session_id}/comments
 
 세션에 달린 라인별 질문과 답변 목록을 조회한다.

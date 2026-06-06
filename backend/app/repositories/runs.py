@@ -1,5 +1,6 @@
 from uuid import UUID
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.run import RunModel
@@ -34,3 +35,12 @@ class RunRepository:
         await self.db_session.commit()
         await self.db_session.refresh(run)
         return run
+
+    async def list_runs(self, session_id: UUID) -> list[RunModel]:
+        stmt = (
+            select(RunModel)
+            .where(RunModel.session_id == session_id)
+            .order_by(RunModel.created_at.desc())
+        )
+        result = await self.db_session.execute(stmt)
+        return list(result.scalars().all())

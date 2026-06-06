@@ -16,7 +16,7 @@ from app.schemas.comments import (
     ReplyCreateRequest,
     ReplyResponse,
 )
-from app.schemas.runs import RunExecuteRequest, RunExecuteResponse
+from app.schemas.runs import RunExecuteRequest, RunExecuteResponse, RunHistoryResponse
 from app.schemas.sessions import (
     SessionCreateRequest,
     SessionCreateResponse,
@@ -91,6 +91,20 @@ async def execute_session_code(
         message=SessionRunCompletedEvent(session_id=session_id, run_id=run_result.run_id).model_dump(mode="json"),
     )
     return run_result
+
+
+@router.get("/{session_id}/runs", response_model=RunHistoryResponse)
+async def get_session_runs(
+    session_id: UUID,
+    session_service: SessionService = Depends(get_session_service),
+    run_service: RunService = Depends(get_run_service_with_db),
+) -> RunHistoryResponse:
+    try:
+        await session_service.get_session(session_id=session_id)
+    except SessionNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found") from exc
+
+    return await run_service.list_runs(session_id=session_id)
 
 
 @router.get("/{session_id}/comments", response_model=CommentListResponse)

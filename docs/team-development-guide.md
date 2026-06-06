@@ -108,6 +108,7 @@ docs/api-contract.md
 POST /sessions
 GET /sessions/{session_id}
 POST /sessions/{session_id}/run
+GET /sessions/{session_id}/runs
 GET /sessions/{session_id}/comments
 POST /sessions/{session_id}/comments
 POST /sessions/{session_id}/comments/{comment_id}/replies
@@ -204,10 +205,10 @@ git switch -c feat/cloud-compose-runner
 | 1 | 백엔드 | FastAPI app, `/health`, 세션 API skeleton | 클라우드/인프라가 backend 컨테이너 port와 health check를 고정할 수 있다. |
 | 2 | 백엔드 + Runner | Runner `POST /run` skeleton, 요청/응답 모델, timeout 처리 자리 | 프론트엔드는 실행 결과 타입을 맞출 수 있고, 클라우드/인프라는 runner service를 compose에 올릴 수 있다. |
 | 3 | 클라우드/인프라 | postgres/backend/runner compose 연결, env, network, health check | 백엔드와 Runner를 같은 로컬 compose 환경에서 검증할 수 있다. |
-| 4 | 프론트엔드 | Vite scaffold, Monaco 화면, mock 기반 세션/실행 결과/질문 UI | 백엔드 API가 준비되면 mock adapter를 실제 API 호출로 교체하면 된다. |
+| 4 | 프론트엔드 | Vite scaffold, Monaco 화면, 세션/실행 결과/질문 UI | 백엔드 API가 준비되면 실제 API 호출로 연결한다. |
 | 5 | 전체 | 실제 API 연결, WebSocket 갱신, Docker Runner 실행 통합 | 중간보고서와 최종 데모의 핵심 흐름을 확인할 수 있다. |
 
-프론트엔드는 백엔드가 끝날 때까지 기다리면 안 된다. `docs/api-contract.md` 기준으로 mock 데이터를 먼저 만들고, endpoint가 준비되면 연결부만 바꾼다.
+프론트엔드는 백엔드가 끝날 때까지 기다리지 않고 `docs/api-contract.md` 기준으로 화면을 먼저 만들 수 있다. endpoint가 준비되면 연결부를 실제 API 호출로 바꾼다.
 
 클라우드/인프라는 backend/runner 구현을 기다리는 동안 Docker Desktop/Engine, PostgreSQL compose, `.env.example`, 포트 정책, Dockerfile 작성 기준을 먼저 잡는다. 단, 전체 compose 통합 PR은 backend/runner에 최소 app entrypoint와 health check가 생긴 뒤 합치는 편이 안전하다.
 
@@ -303,7 +304,7 @@ docker compose up --build
 
 | 역할 | 1차 완료 기준 |
 | --- | --- |
-| 프론트엔드 | mock 데이터 또는 임시 API로 세션 입장 화면, Monaco Editor, 실행 결과 패널이 보인다. |
+| 프론트엔드 | 세션 입장 화면, Monaco Editor, 실행 결과 패널이 보인다. |
 | 백엔드 | Swagger 또는 curl로 세션 생성, 실행 요청, 질문/답변 API, WebSocket 연결이 확인된다. |
 | 클라우드/인프라 | `docker compose up --build`로 frontend/backend/runner/postgres가 뜨고, 각 서비스 health check가 가능하다. |
 | Runner | Python 코드를 받아 stdout/stderr/exit code/timed_out 형식으로 결과를 반환한다. |
@@ -320,6 +321,7 @@ docker compose up --build
 - 실행 요청
 - 정상 실행 결과 표시
 - 오류 코드 stderr 표시
+- 실행 이력과 코드 스냅샷 복원
 - 무한 루프 timeout 처리
 - 특정 라인에 질문 작성
 - 답변 작성
@@ -336,6 +338,7 @@ docker compose up --build
 - Runner Service가 일회용 Docker 컨테이너 실행
 - 정상 코드 stdout 반환
 - 오류 코드 stderr 반환
+- 실행 이력에서 이전 코드와 결과 복원
 - 무한 루프 timeout 처리
 - 실행 후 컨테이너가 삭제되는 로그
 - 질문/답변이 WebSocket으로 갱신되는 화면
