@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import Editor from '@monaco-editor/react'
 import {
   type Comment,
+  type RunHistoryItem,
   type RunResult,
   type Session,
   WS_BASE_URL,
@@ -9,6 +10,7 @@ import {
   createReply,
   createSession,
   getComments,
+  getRuns,
   getSession,
   runCode,
 } from './api'
@@ -41,6 +43,8 @@ function App() {
   const [code, setCode] = useState(initialCode)
   const [stdin, setStdin] = useState('')
   const [runResult, setRunResult] = useState<RunResult | null>(null)
+  const [runHistory, setRunHistory] = useState<RunHistoryItem[]>([])
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null)
 
   const [comments, setComments] = useState<Comment[]>([])
   const [lineNumber, setLineNumber] = useState(1)
@@ -54,7 +58,10 @@ function App() {
 
   const isBackendReady = Boolean(session)
   const isWebSocketLive = events.some((event) => event.type === 'ws.connected')
-  const isRunnerTested = Boolean(runResult)
+  const selectedRun =
+    selectedRunId ? runHistory.find((run) => run.run_id === selectedRunId) ?? null : null
+  const displayedRun = selectedRun ?? runResult
+  const isRunnerTested = Boolean(displayedRun) || runHistory.length > 0
 
   const showToast = (type: Toast['type'], message: string) => {
     setToast({ type, message })
@@ -91,11 +98,36 @@ function App() {
     setComments(data.comments)
   }
 
+  const refreshRuns = async (sessionId: string) => {
+    const data = await getRuns(sessionId)
+    setRunHistory(data.runs)
+    setSelectedRunId((currentRunId) => {
+      if (data.runs.length === 0) return null
+      if (currentRunId && data.runs.some((run) => run.run_id === currentRunId)) {
+        return currentRunId
+      }
+      return data.runs[0].run_id
+    })
+    return data.runs
+  }
+
+  const restoreRunSnapshot = (run: RunHistoryItem) => {
+    setSelectedRunId(run.run_id)
+    setCode(run.code)
+    setStdin(run.stdin)
+  }
+
   const loadSession = async (sessionId: string) => {
     const loaded = await getSession(sessionId)
     setSession(loaded)
     setJoinSessionId(loaded.session_id)
-    await refreshComments(loaded.session_id)
+    const [, runs] = await Promise.all([
+      refreshComments(loaded.session_id),
+      refreshRuns(loaded.session_id),
+    ])
+    if (runs[0]) {
+      restoreRunSnapshot(runs[0])
+    }
   }
 
   useEffect(() => {
@@ -115,8 +147,13 @@ function App() {
           setSession(loaded)
           setJoinSessionId(loaded.session_id)
 
-          const data = await getComments(loaded.session_id)
-          setComments(data.comments)
+          const [, runs] = await Promise.all([
+            refreshComments(loaded.session_id),
+            refreshRuns(loaded.session_id),
+          ])
+          if (runs[0]) {
+            restoreRunSnapshot(runs[0])
+          }
 
           setToast({
             type: 'success',
@@ -143,7 +180,7 @@ function App() {
       setSession(created)
       setJoinSessionId(created.session_id)
       moveToSessionUrl(created.session_id)
-      await refreshComments(created.session_id)
+      await Promise.all([refreshComments(created.session_id), refreshRuns(created.session_id)])
       showToast('success', 'Session created successfully.')
     } catch (err) {
       showToast('error', err instanceof Error ? err.message : 'Failed to create session')
@@ -174,6 +211,8 @@ function App() {
   const handleBackToHub = () => {
     setSession(null)
     setRunResult(null)
+    setRunHistory([])
+    setSelectedRunId(null)
     setComments([])
     setEvents([])
     moveToHomeUrl()
@@ -202,6 +241,8 @@ function App() {
       setLoading(true)
       const result = await runCode(session.session_id, code, stdin)
       setRunResult(result)
+      await refreshRuns(session.session_id)
+      setSelectedRunId(result.run_id)
 
       if (result.timed_out) {
         showToast('info', 'Code execution timed out inside the sandbox.')
@@ -263,6 +304,14 @@ function App() {
     }
   }
 
+  const handleSelectRun = (run: RunHistoryItem) => {
+    restoreRunSnapshot(run)
+  }
+
+  const formatRunTime = (value: string) => {
+    return new Date(value).toLocaleString()
+  }
+
   useEffect(() => {
     if (!session) return
 
@@ -303,7 +352,7 @@ function App() {
 
         if (data.type === 'session.run.completed') {
           showToast('info', 'Run completed event received.')
-          await refreshComments(session.session_id)
+          await Promise.all([refreshComments(session.session_id), refreshRuns(session.session_id)])
         }
       } catch {
         addEvent({
@@ -579,19 +628,43 @@ print(total)
             <div className="result-grid">
               <div>
                 <span>Exit Code</span>
-                <strong>{runResult?.exit_code ?? '-'}</strong>
+                <strong>{displayedRun?.exit_code ?? '-'}</strong>
               </div>
               <div>
                 <span>Timed Out</span>
-                <strong>{runResult ? String(runResult.timed_out) : '-'}</strong>
+                <strong>{displayedRun ? String(displayedRun.timed_out) : '-'}</strong>
               </div>
             </div>
 
             <label>stdout</label>
-            <pre className="terminal success">{runResult?.stdout || '(empty)'}</pre>
+            <pre className="terminal success">{displayedRun?.stdout || '(empty)'}</pre>
 
             <label>stderr</label>
-            <pre className="terminal error">{runResult?.stderr || '(empty)'}</pre>
+            <pre className="terminal error">{displayedRun?.stderr || '(empty)'}</pre>
+          </section>
+
+          <section className="card">
+            <h2>Run History</h2>
+            <p className="card-copy">Select a run to restore its code snapshot and output.</p>
+
+            <div className="run-history-list">
+              {runHistory.length === 0 && <p className="empty">No saved runs yet.</p>}
+              {runHistory.map((run, index) => (
+                <button
+                  type="button"
+                  className={`run-history-item ${run.run_id === selectedRunId ? 'active' : ''}`}
+                  key={run.run_id}
+                  onClick={() => handleSelectRun(run)}
+                >
+                  <span>Run {runHistory.length - index}</span>
+                  <strong>
+                    Exit {run.exit_code}
+                    {run.timed_out ? ' · Timeout' : ''}
+                  </strong>
+                  <small>{formatRunTime(run.created_at)}</small>
+                </button>
+              ))}
+            </div>
           </section>
 
           <section className="card">

@@ -290,6 +290,12 @@ label,
   padding: 20px;
 }
 
+.card-copy {
+  margin: 0 0 14px;
+  color: #64748b;
+  font-size: 14px;
+}
+
 .result-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -332,6 +338,60 @@ label {
 
 .terminal.error {
   color: #fca5a5;
+}
+
+.run-history-list {
+  display: grid;
+  gap: 10px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+.run-history-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.run-history-list::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #cbd5e1;
+}
+
+.run-history-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.run-history-item {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #dbe3ef;
+  border-radius: 14px;
+  color: #1e293b;
+  background: #f8fafc;
+  box-shadow: none;
+  text-align: left;
+}
+
+.run-history-item:hover {
+  background: #e2e8f0;
+}
+
+.run-history-item.active {
+  border-color: #93c5fd;
+  background: #dbeafe;
+}
+
+.run-history-item span,
+.run-history-item small {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.run-history-item strong {
+  color: #0f172a;
+  font-size: 14px;
 }
 
 .event-list {

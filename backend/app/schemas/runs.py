@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
@@ -30,3 +31,19 @@ class RunExecuteResponse(BaseModel):
     stderr: str
     exit_code: int
     timed_out: bool
+
+
+class RunHistoryItemResponse(BaseModel):
+    run_id: UUID
+    language: Literal["python"]
+    code: str
+    stdin: str
+    stdout: str
+    stderr: str
+    exit_code: int
+    timed_out: bool
+    created_at: datetime
+
+
+class RunHistoryResponse(BaseModel):
+    runs: list[RunHistoryItemResponse]

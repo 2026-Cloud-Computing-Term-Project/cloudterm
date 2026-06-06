@@ -3,7 +3,13 @@ from uuid import UUID
 from app.clients.runner import RunnerClient
 from app.core.settings import settings
 from app.repositories.runs import RunRepository
-from app.schemas.runs import RunExecuteRequest, RunExecuteResponse, RunnerRunRequest
+from app.schemas.runs import (
+    RunExecuteRequest,
+    RunExecuteResponse,
+    RunHistoryItemResponse,
+    RunHistoryResponse,
+    RunnerRunRequest,
+)
 
 
 class RunService:
@@ -35,4 +41,23 @@ class RunService:
             stderr=runner_response.stderr,
             exit_code=runner_response.exit_code,
             timed_out=runner_response.timed_out,
+        )
+
+    async def list_runs(self, session_id: UUID) -> RunHistoryResponse:
+        runs = await self.run_repository.list_runs(session_id=session_id)
+        return RunHistoryResponse(
+            runs=[
+                RunHistoryItemResponse(
+                    run_id=run.run_id,
+                    language=run.language,
+                    code=run.code,
+                    stdin=run.stdin,
+                    stdout=run.stdout,
+                    stderr=run.stderr,
+                    exit_code=run.exit_code,
+                    timed_out=run.timed_out,
+                    created_at=run.created_at,
+                )
+                for run in runs
+            ],
         )

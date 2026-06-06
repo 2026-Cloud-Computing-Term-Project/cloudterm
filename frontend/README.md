@@ -12,6 +12,7 @@ The frontend is built with Vite, React, TypeScript, and Monaco Editor. It connec
 - Monaco Editor based Python code editor
 - Backend-connected code execution
 - stdout / stderr / exit code / timeout result display
+- Saved run history and code snapshot restore
 - Line-based comments and replies
 - WebSocket event log
 - Toast notifications
@@ -81,4 +82,4 @@ If the frontend is deployed over HTTPS, the backend should also support HTTPS/WS
 
 ## Notes
 
-This frontend no longer uses mock data for the main session flow. It is connected to the backend API for session creation, code execution, comments, replies, and WebSocket event notifications.
+This frontend no longer uses mock data for the main session flow. It is connected to the backend API for session creation, code execution, saved run history, comments, replies, and WebSocket event notifications.

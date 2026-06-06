@@ -174,7 +174,7 @@ VITE_WS_BASE_URL=ws://52.231.65.10:8000
 - `http://52.231.65.10:8000` backend endpoint는 응답하지 않는다.
 - 디스크와 Standard Public IP 같은 고정 리소스 비용은 남을 수 있다.
 - VM을 다시 시작하면 repo와 Docker Compose 배포 상태는 디스크에 남아 있다.
-- 프론트엔드는 VM 정지 중에도 mock 데이터나 로컬 backend 기준으로 작업할 수 있다.
+- 프론트엔드는 VM 정지 중에도 로컬 backend 기준으로 실행과 통합 검증을 진행할 수 있다.
 
 ## 완료 기준
 

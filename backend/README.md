@@ -23,11 +23,13 @@ WebSocket 세션 채널은 heartbeat 용도로 `"ping"`/`"pong"` 메시지를 �
 - `POST /sessions`
 - `GET /sessions/{session_id}`
 - `POST /sessions/{session_id}/run`
+- `GET /sessions/{session_id}/runs`
 - `GET /sessions/{session_id}/comments`
 - `POST /sessions/{session_id}/comments`
 - `POST /sessions/{session_id}/comments/{comment_id}/replies`
 - `WS /ws/sessions/{session_id}`
 - PostgreSQL 세션/실행/댓글/답글 저장
+- 실행 이력 조회와 실행 당시 코드 스냅샷 반환
 - Runner 내부 API 연동
 
 ## 첫 작업
