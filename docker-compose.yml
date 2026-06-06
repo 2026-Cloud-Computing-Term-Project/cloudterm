@@ -44,6 +44,7 @@ services:
     container_name: cloudterm-backend
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql://cloudterm:cloudterm@postgres:5432/cloudterm}
+      FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://localhost:5173}
       RUNNER_URL: ${RUNNER_URL:-http://runner:8001}
       RUN_TIMEOUT_SECONDS: ${RUN_TIMEOUT_SECONDS:-3}
     ports:
