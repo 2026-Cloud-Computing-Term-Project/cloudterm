@@ -107,16 +107,33 @@ function App() {
 
     if (!cleanSessionId) return
 
-    setLoading(true)
-    loadSession(cleanSessionId)
-      .then(() => showToast('success', 'Joined session from link.'))
-      .catch((err) =>
-        showToast(
-          'error',
-          err instanceof Error ? err.message : 'Failed to join session from link.',
-        ),
-      )
-      .finally(() => setLoading(false))
+    const timer = window.setTimeout(() => {
+      setLoading(true)
+
+      getSession(cleanSessionId)
+        .then(async (loaded) => {
+          setSession(loaded)
+          setJoinSessionId(loaded.session_id)
+
+          const data = await getComments(loaded.session_id)
+          setComments(data.comments)
+
+          setToast({
+            type: 'success',
+            message: 'Joined session from link.',
+          })
+        })
+        .catch((err) =>
+          setToast({
+            type: 'error',
+            message:
+              err instanceof Error ? err.message : 'Failed to join session from link.',
+          }),
+        )
+        .finally(() => setLoading(false))
+    }, 0)
+
+    return () => window.clearTimeout(timer)
   }, [])
 
   const handleCreateSession = async () => {

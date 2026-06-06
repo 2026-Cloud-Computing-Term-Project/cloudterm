@@ -1,8 +1,9 @@
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api'
+
+const defaultWsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
 
 export const WS_BASE_URL =
-  import.meta.env.VITE_WS_BASE_URL ?? 'ws://localhost:8000'
+  import.meta.env.VITE_WS_BASE_URL ?? `${defaultWsProtocol}//${window.location.host}`
 
 export type Session = {
   session_id: string
